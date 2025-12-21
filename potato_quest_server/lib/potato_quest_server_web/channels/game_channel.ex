@@ -12,7 +12,14 @@ defmodule PotatoQuestServerWeb.GameChannel do
     # Assign username to socket
     socket = assign(socket, :username, username)
     socket = assign(socket, :player_id, generate_player_id())
-    socket = assign(socket, :position, %{x: 0, y: 0, z: 0})
+    # get current player count so that we can spawn the player in empty space
+    # we will calculate spawn position in a circle
+    player_count = map_size(Presence.list(socket))
+    spawn_radius = 3.0
+    angle = player_count * (2 * :math.pi() / 8) # 8 max positions--adjust if needed
+    spawn_x = spawn_radius * :math.cos(angle)
+    spawn_z = spawn_radius * :math.sin(angle)
+    socket = assign(socket, :position, %{x: spawn_x, y: 1.0, z: spawn_z})
 
     # Get list of current players in lobby
     send(self(), :after_join)

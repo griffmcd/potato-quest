@@ -9,7 +9,6 @@ extends Node3D
 
 # References to important nodes (set these in the Inspector)
 @export var player: CharacterBody3D
-@export var spawn_point: Vector3 = Vector3(0, 1, 0)
 
 # Track remote players
 var remote_players: Dictionary = {}  # {player_id: RemotePlayer node}
@@ -19,23 +18,16 @@ var remote_players: Dictionary = {}  # {player_id: RemotePlayer node}
 
 
 func _ready() -> void:
-	print("DEBUG MainGame: _ready called")
 	# Position the local player at spawn point
-	if player:
-		player.global_position = spawn_point
 	call_deferred("_connect_signals")
 
 func _connect_signals() -> void:
-	print("DEBUG MainGame: Connecting signals")
 	# Connect to network signals
 	network.player_joined.connect(_on_player_joined)
 	network.player_moved.connect(_on_player_moved)
 	network.player_left.connect(_on_player_left)
 	network.lobby_state_received.connect(_on_lobby_state_received)
 	network.joined_lobby.connect(_on_joined_lobby)
-
-	print("DEBUG MainGame: All signals connected")
-	print("DEBUG MainGame: My player_id: ", network.player_id)
 
 	# Request the current lobby state now that we're ready
 	network.request_lobby_state()
@@ -49,23 +41,24 @@ func _on_joined_lobby(player_id: String) -> void:
 
 ## Called when lobby state is received (list of existing players)
 func _on_lobby_state_received(players: Array) -> void:
-	print("DEBUG: Raw lobby state players: ", players)
-	print("DEBUG: My player_id is: ", network.player_id)
 	print("MainGame: Received lobby state with ", players.size(), " players")
 
 	# Spawn existing players
 	for player_data in players:
 		var p_id = player_data.get("player_id", "")
 		var p_username = player_data.get("username", "")
-		var position = player_data.get("position", {"x": 0, "y": 0, "z": 0})
+		var player_position = player_data.get("position", {"x": 0, "y": 0, "z": 0})
 
-		# Don't spawn ourselves
-		if p_id != network.player_id:
-			_spawn_remote_player(p_id, p_username, position)
+		if p_id == network.player_id:
+			if player:
+				player.global_position = Vector3(player_position.x, player_position.y, player_position.z)
+				print("MainGame: Set local player position to ", player.global_position)
+		else:
+			_spawn_remote_player(p_id, p_username, player_position)
 
 
 ## Called when a new player joins
-func _on_player_joined(p_id: String, username: String, position: Dictionary) -> void:
+func _on_player_joined(p_id: String, username: String, player_position: Dictionary) -> void:
 	print("MainGame: Player joined - ", username, " (", p_id, ")")
 
 	# Don't spawn ourselves
@@ -76,11 +69,11 @@ func _on_player_joined(p_id: String, username: String, position: Dictionary) -> 
 	if remote_players.has(p_id):
 		return
 
-	_spawn_remote_player(p_id, username, position)
+	_spawn_remote_player(p_id, username, player_position)
 
 
 ## Called when a player moves
-func _on_player_moved(p_id: String, position: Dictionary) -> void:
+func _on_player_moved(p_id: String, player_position: Dictionary) -> void:
 	# Don't update our own position (we control that locally)
 	if p_id == network.player_id:
 		return
@@ -88,7 +81,7 @@ func _on_player_moved(p_id: String, position: Dictionary) -> void:
 	# Update remote player position
 	if remote_players.has(p_id):
 		var remote_player = remote_players[p_id]
-		var new_pos = Vector3(position.x, position.y, position.z)
+		var new_pos = Vector3(player_position.x, player_position.y, player_position.z)
 		remote_player.update_position(new_pos)
 
 
@@ -103,7 +96,7 @@ func _on_player_left(p_id: String, username: String) -> void:
 
 
 ## Spawn a remote player in the world
-func _spawn_remote_player(p_id: String, username: String, position: Dictionary) -> void:
+func _spawn_remote_player(p_id: String, username: String, player_position: Dictionary) -> void:
 	if not remote_player_scene:
 		print("ERROR: remote_player_scene not set in MainGame!")
 		return
@@ -116,7 +109,7 @@ func _spawn_remote_player(p_id: String, username: String, position: Dictionary) 
 	remote_player.player_username = username
 
 	# Set position
-	var pos = Vector3(position.x, position.y, position.z)
+	var pos = Vector3(player_position.x, player_position.y, player_position.z)
 	remote_player.global_position = pos
 	remote_player.target_position = pos
 
