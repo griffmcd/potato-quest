@@ -1,0 +1,94 @@
+# Elixir / Phoenix (Server)
+/_build/
+/deps/
+/*.ez
+/potato_quest_server/_build/
+/potato_quest_server/deps/
+/potato_quest_server/*.ez
+/potato_quest_server/doc/
+/potato_quest_server/.fetch
+/potato_quest_server/erl_crash.dump
+/potato_quest_server/*.beam
+/potato_quest_server/.elixir_ls/
+/potato_quest_server/priv/static/
+
+# Godot (Client)
+.godot/
+.import/
+*.import
+*.translation
+export.cfg
+export_presets.cfg
+.mono/
+data_*/
+mono_crash.*.json
+
+# Godot exported builds (you may want to commit these to releases)
+potato_quest_client/builds/
+*.pck
+*.exe
+*.dmg
+*.app
+*.apk
+*.zip
+
+# OS
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+*~
+
+# Editors
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.project
+.classpath
+.c9/
+*.launch
+.settings/
+*.sublime-workspace
+*.code-workspace
+
+# Temporary files
+*.log
+*.tmp
+*.temp
+.cache/
+
+# Environment variables
+.env
+.env.*
+!.env.example
+
+# Test coverage
+/potato_quest_server/cover/
+/potato_quest_server/coverage/
+
+# Build artifacts
+*.o
+*.so
+*.dylib
+
+# Backup files
+*.bak
+*.backup
+*~.nib
+
+# Local test databases
+*.db
+*.sqlite
+*.sqlite3
+
+# Elixir Language Server
+.elixir-ls/
+
+# Release builds
+_build/
+rel/

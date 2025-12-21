@@ -1,0 +1,46 @@
+[gd_scene load_steps=8 format=3 uid="uid://b0x3re0tmu8kj"]
+
+[ext_resource type="Script" uid="uid://dkd60fxd8dvhx" path="res://scripts/main_game.gd" id="1_d2op2"]
+[ext_resource type="PackedScene" uid="uid://b1jgetthpr4ox" path="res://scenes/remote_player.tscn" id="2_0rdsr"]
+[ext_resource type="PackedScene" uid="uid://cbmluwd2p7f3t" path="res://scenes/player.tscn" id="3_ipu61"]
+
+[sub_resource type="PlaneMesh" id="PlaneMesh_ygxny"]
+size = Vector2(100, 100)
+
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_wi4c7"]
+albedo_color = Color(0.1088, 0.34, 0.12036, 1)
+
+[sub_resource type="BoxShape3D" id="BoxShape3D_70vka"]
+size = Vector3(100, 0.1, 100)
+
+[sub_resource type="Environment" id="Environment_2l77h"]
+background_mode = 2
+
+[node name="MainGame" type="Node3D" node_paths=PackedStringArray("player")]
+script = ExtResource("1_d2op2")
+remote_player_scene = ExtResource("2_0rdsr")
+player = NodePath("Player")
+
+[node name="Ground" type="MeshInstance3D" parent="."]
+mesh = SubResource("PlaneMesh_ygxny")
+surface_material_override/0 = SubResource("StandardMaterial3D_wi4c7")
+
+[node name="GroundCollision" type="StaticBody3D" parent="Ground"]
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="Ground/GroundCollision"]
+shape = SubResource("BoxShape3D_70vka")
+
+[node name="Sun" type="DirectionalLight3D" parent="."]
+transform = Transform3D(0.707107, -0.5, 0.5, 0, 0.707107, 0.707107, -0.707107, -0.5, 0.5, 0, 0, 0)
+
+[node name="AmbientEnvironment" type="Node3D" parent="."]
+
+[node name="WorldEnvironment" type="WorldEnvironment" parent="AmbientEnvironment"]
+environment = SubResource("Environment_2l77h")
+
+[node name="Camera" type="Camera3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 0.707107, 0.707107, 0, -0.707107, 0.707107, 0, 15, 15)
+current = true
+
+[node name="Player" parent="." instance=ExtResource("3_ipu61")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1, 0)
