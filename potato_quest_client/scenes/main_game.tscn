@@ -1,10 +1,9 @@
-[gd_scene load_steps=10 format=3 uid="uid://b0x3re0tmu8kj"]
+[gd_scene load_steps=9 format=3 uid="uid://b0x3re0tmu8kj"]
 
 [ext_resource type="Script" uid="uid://dkd60fxd8dvhx" path="res://scripts/main_game.gd" id="1_d2op2"]
 [ext_resource type="PackedScene" uid="uid://b1jgetthpr4ox" path="res://scenes/remote_player.tscn" id="2_0rdsr"]
 [ext_resource type="PackedScene" uid="uid://cbmluwd2p7f3t" path="res://scenes/player.tscn" id="3_ipu61"]
 [ext_resource type="PackedScene" uid="uid://d0mn0qvsneih5" path="res://scenes/chat_ui.tscn" id="4_0rdsr"]
-[ext_resource type="Script" uid="uid://d1ymtpr44651y" path="res://scripts/chat_ui.gd" id="5_ipu61"]
 
 [sub_resource type="PlaneMesh" id="PlaneMesh_ygxny"]
 size = Vector2(100, 100)
@@ -42,10 +41,8 @@ environment = SubResource("Environment_2l77h")
 
 [node name="Camera" type="Camera3D" parent="."]
 transform = Transform3D(1, 0, 0, 0, 0.707107, 0.707107, 0, -0.707107, 0.707107, 0, 15, 15)
-current = true
 
 [node name="Player" parent="." instance=ExtResource("3_ipu61")]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1, 0)
 
 [node name="ChatUI" parent="." instance=ExtResource("4_0rdsr")]
-script = ExtResource("5_ipu61")

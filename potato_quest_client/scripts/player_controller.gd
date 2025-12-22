@@ -25,16 +25,35 @@ func _ready() -> void:
 func _physics_process(delta: float) -> void:
 	# Get input for movement
 	var input_dir = Input.get_vector("move_left", "move_right", "move_forward", "move_backward")
-	var direction = Vector3(input_dir.x, 0, input_dir.y).normalized()
 
-	if direction:
+	# Get camera rig reference for camera-relative movement
+	var camera_rig = $CameraRig
+
+	if input_dir.length() > 0:
+		# Calculate movement direction relative to camera
+		# Use the camera rig's Y rotation directly
+		var cam_y_rotation = camera_rig.rotation.y
+
+		# Create forward and right vectors based on camera Y rotation
+		# Note: In Godot, Z+ is backward, so we negate for forward movement
+		var camera_forward = Vector3(-sin(cam_y_rotation), 0, -cos(cam_y_rotation))
+		var camera_right = Vector3(cos(cam_y_rotation), 0, -sin(cam_y_rotation))
+
+		# Movement relative to camera direction
+		# input_dir.x is left/right (A/D), input_dir.y is forward/back (W/S)
+		# Note: input_dir.y is negative for W (forward), positive for S (backward)
+		var direction = (camera_right * input_dir.x - camera_forward * input_dir.y).normalized()
+
+		print("Camera Y rotation: ", rad_to_deg(cam_y_rotation), " degrees")
+		print("Input: ", input_dir, " -> Direction: ", direction)
+
 		# Move the character
 		velocity.x = direction.x * move_speed
 		velocity.z = direction.z * move_speed
 
-		# Rotate to face movement direction
-		var target_rotation = atan2(direction.x, direction.z)
-		rotation.y = lerp_angle(rotation.y, target_rotation, rotation_speed * delta)
+		# Don't rotate the player body - let it stay at 0
+		# The camera handles all rotation
+		# (We can add body rotation back later only for visual purposes in third-person)
 	else:
 		# Decelerate when no input
 		velocity.x = move_toward(velocity.x, 0, move_speed * delta * 5)

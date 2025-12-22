@@ -14,24 +14,15 @@ extends Control
 @onready var network = get_node("/root/NetworkManager")
 
 func _ready() -> void:
-    print("DEBUG ChatUI: _ready() called")
-    print("DEBUG ChatUI: chat_display = ", chat_display)
-    print("DEBUG ChatUI: chat_input = ", chat_input)
-    print("DEBUG ChatUI: send_button = ", send_button)
-    print("DEBUG ChatUI: network = ", network)
     # Connect network signals 
-    print("DEBUG ChatUI: Connecting network signals")
     network.chat_message_received.connect(_on_chat_message_received)
 
     # Connect UI signals 
-    print("DEBUG ChatUI: Connecting UI signals")
     send_button.pressed.connect(_on_send_button_pressed)
     chat_input.text_submitted.connect(_on_chat_submitted)
 
     # Initial welcome message 
-    print("DEBUG ChatUI: Adding welcome message")
     _add_system_message("Welcome to Potato Quest! Press Enter to chat.")
-    print("DEBUG ChatUI: _ready() complete")
 
 func _on_send_button_pressed() -> void:
     _send_message()
@@ -40,25 +31,16 @@ func _on_chat_submitted(_text: String) -> void:
     _send_message()
 
 func _send_message() -> void:
-    print("DEBUG: _send_message called")
     var message = chat_input.text.strip_edges()
-    print("DEBUG: message = ", message)
 
     if message.is_empty():
-        print("DEBUG: message is empty, returning")
         return 
     
-    print("DEBUG: network = ", network)
-    print("DEBUG: network.player_id = ", network.player_id if network else "network is null")
-
     if not network or network.player_id.is_empty():
-        print("DEBUG: Not connected, showing error")
         _add_system_message("Not connected to server.")
         return
 
-    print("DEBUG: Calling network.send_chat()")
     network.send_chat(message)
-    print("DEBUG: Clearing input and refocusing")
     chat_input.text = ""
     chat_input.grab_focus()
 

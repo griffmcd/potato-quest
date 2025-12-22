@@ -210,8 +210,6 @@ func _handle_player_left(payload: Dictionary) -> void:
 func _handle_lobby_state(payload: Dictionary) -> void:
 	var players = payload.get("players", [])
 	print("Lobby state: ", players.size(), " players online")
-	print("DEBUG NetworkManager: Players data = ", players)
-	print("DEBUG NetworkManager: Emitting lobby_state_received signal")
 	lobby_state_received.emit(players)
 
 

@@ -1,6 +1,7 @@
-[gd_scene load_steps=5 format=3 uid="uid://cbmluwd2p7f3t"]
+[gd_scene load_steps=6 format=3 uid="uid://cbmluwd2p7f3t"]
 
 [ext_resource type="Script" uid="uid://dr4gem88u8wtr" path="res://scripts/player_controller.gd" id="1_3vyb7"]
+[ext_resource type="Script" uid="uid://db1lsdq5oa6sx" path="res://scripts/camera_controller.gd" id="2_g2els"]
 
 [sub_resource type="CapsuleMesh" id="CapsuleMesh_g2els"]
 
@@ -18,3 +19,16 @@ surface_material_override/0 = SubResource("StandardMaterial3D_qhqgy")
 
 [node name="CollisionShape" type="CollisionShape3D" parent="."]
 shape = SubResource("CapsuleShape3D_dqkch")
+
+[node name="CameraRig" type="Node3D" parent="."]
+script = ExtResource("2_g2els")
+
+[node name="FirstPersonCamera" type="Camera3D" parent="CameraRig"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.6, 0)
+current = true
+
+[node name="ThirdPersonArm" type="SpringArm3D" parent="CameraRig"]
+spring_length = 5.0
+margin = 0.2
+
+[node name="ThirdPersonCamera" type="Camera3D" parent="CameraRig/ThirdPersonArm"]
