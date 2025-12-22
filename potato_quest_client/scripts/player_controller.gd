@@ -44,9 +44,6 @@ func _physics_process(delta: float) -> void:
 		# Note: input_dir.y is negative for W (forward), positive for S (backward)
 		var direction = (camera_right * input_dir.x - camera_forward * input_dir.y).normalized()
 
-		print("Camera Y rotation: ", rad_to_deg(cam_y_rotation), " degrees")
-		print("Input: ", input_dir, " -> Direction: ", direction)
-
 		# Move the character
 		velocity.x = direction.x * move_speed
 		velocity.z = direction.z * move_speed
