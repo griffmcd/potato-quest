@@ -24,6 +24,7 @@ signal connection_error(error: String)
 signal joined_lobby(player_id: String)
 signal player_joined(player_id: String, username: String, position: Dictionary)
 signal player_moved(player_id: String, position: Dictionary)
+signal player_rotated(player_id: String, rotation: Dictionary)
 signal player_left(player_id: String, username: String)
 signal lobby_state_received(players: Array)
 signal chat_message_received(player_id: String, username: String, message: String)
@@ -90,7 +91,7 @@ func join_lobby(p_username: String) -> void:
 
 
 ## Send player movement to server
-func send_move(position: Vector3) -> void:
+func send_move(position: Vector3, rotation: Vector3) -> void:
 	if not _connected or player_id.is_empty():
 		return
 
@@ -100,7 +101,10 @@ func send_move(position: Vector3) -> void:
 		"payload": {
 			"x": position.x,
 			"y": position.y,
-			"z": position.z
+			"z": position.z,
+			"pitch": rotation.x,
+			"yaw": rotation.y,
+			"rotation_y": rotation.z
 		},
 		"ref": str(_get_next_ref())
 	}
@@ -195,8 +199,10 @@ func _handle_player_joined(payload: Dictionary) -> void:
 func _handle_player_moved(payload: Dictionary) -> void:
 	var p_id = payload.get("player_id", "")
 	var position = payload.get("position", {"x": 0, "y": 0, "z": 0})
+	var rotation = payload.get("rotation", {"pitch": 0, "yaw": 0, "rotation_y": 0})
 
 	player_moved.emit(p_id, position)
+	player_rotated.emit(p_id, rotation)
 
 
 func _handle_player_left(payload: Dictionary) -> void:

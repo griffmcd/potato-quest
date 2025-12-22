@@ -13,6 +13,10 @@ var _last_sent_position: Vector3 = Vector3.ZERO
 var _position_send_timer: float = 0.0
 var _move_threshold: float = 0.5  # Minimum movement to trigger update
 
+# Rotation tracking 
+var _last_sent_rotation: Vector3 = Vector3.ZERO 
+var _rotation_threshold: float = 0.05 # ~3 degrees in radians 
+
 # Reference to NetworkManager (autoload)
 @onready var network = get_node("/root/NetworkManager")
 
@@ -68,6 +72,17 @@ func _physics_process(delta: float) -> void:
 	# Send position updates to server
 	_update_position_sending(delta)
 
+	# track rotation changes 
+	if _rotation_changed():
+		var current_pitch = _get_camera_pitch()
+		var current_yaw = camera_rig.rotation.y 
+		var current_body_rotation = rotation.y 
+
+		_last_sent_rotation = Vector3(current_pitch, current_yaw, current_body_rotation)
+		print("Rotation changed - Pitch: ", rad_to_deg(current_pitch), " degrees, Yaw: ", rad_to_deg(current_yaw), " degrees, Body: ", rad_to_deg(current_body_rotation), " degreees.")
+
+
+
 
 func _update_position_sending(delta: float) -> void:
 	_position_send_timer += delta
@@ -78,13 +93,40 @@ func _update_position_sending(delta: float) -> void:
 
 		if distance_moved >= _move_threshold:
 			# Send position to server
-			network.send_move(global_position)
+			network.send_move(global_position, _get_current_rotation())
 			_last_sent_position = global_position
 			_position_send_timer = 0.0
 		elif velocity.length() < 0.1:
 			# Send one final position update when stopped
 			if _last_sent_position.distance_to(global_position) > 0.01:
-				network.send_move(global_position)
+				network.send_move(global_position, _get_current_rotation())
 				_last_sent_position = global_position
 
 		_position_send_timer = 0.0
+
+func _rotation_changed() -> bool:
+	var camera_rig = $CameraRig
+	var current_pitch = _get_camera_pitch()
+	var current_yaw = camera_rig.rotation.y 
+	var current_body_rotation = rotation.y 
+
+	var current_rotation = Vector3(current_pitch, current_yaw, current_body_rotation)
+	# did any component change beyond the threshold 
+	if abs(current_rotation.x - _last_sent_rotation.x) >= _rotation_threshold:
+		return true 
+	if abs(current_rotation.y - _last_sent_rotation.y) >= _rotation_threshold:
+		return true 
+	if abs(current_rotation.z - _last_sent_rotation.z) >= _rotation_threshold:
+		return true 
+	return false 
+
+func _get_camera_pitch() -> float:
+	var camera_rig = $CameraRig 
+	if camera_rig.is_first_person:
+		return camera_rig.first_person_camera.rotation.x 
+	else:
+		return camera_rig.third_person_camera.rotation.x
+
+func _get_current_rotation() -> Vector3:
+	var camera_rig = $CameraRig
+	return Vector3(_get_camera_pitch(), camera_rig.rotation.y, rotation.y)

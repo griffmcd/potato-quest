@@ -51,22 +51,35 @@ defmodule PotatoQuestServerWeb.GameChannel do
   end
 
   @impl true
-  def handle_in("player:move", %{"x" => x, "y" => y, "z" => z}, socket) do
+  def handle_in("player:move", %{
+    "x" => x,
+    "y" => y,
+    "z" => z,
+    "pitch" => pitch,
+    "yaw" => yaw,
+    "rotation_y" => rotation_y
+  }, socket) do
     # Update position in socket state
     new_position = %{x: x, y: y, z: z}
-    socket = assign(socket, :position, new_position)
+    new_rotation = %{pitch: pitch, yaw: yaw, rotation_y: rotation_y}
+    socket = socket
+      |> assign(:position, new_position)
+      |> assign(:rotation, new_rotation)
 
     # Update position in Presence
     Presence.update(socket, socket.assigns.player_id, %{
       username: socket.assigns.username,
       position: new_position,
+      rotation: new_rotation,
       online_at: inspect(System.system_time(:second))
     })
+
 
     # Broadcast movement to all other players
     broadcast!(socket, "player:moved", %{
       player_id: socket.assigns.player_id,
-      position: new_position
+      position: new_position,
+      rotation: new_rotation
     })
 
     {:noreply, socket}
