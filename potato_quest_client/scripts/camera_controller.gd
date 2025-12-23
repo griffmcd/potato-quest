@@ -26,6 +26,7 @@ func _ready() -> void:
 	first_person_camera = get_node("FirstPersonCamera")
 	third_person_camera = get_node("ThirdPersonArm/ThirdPersonCamera")
 	player_body = player.get_node("Body")
+	player_body.visible = false
 	toggle_mouse_capture(true) 
 
 

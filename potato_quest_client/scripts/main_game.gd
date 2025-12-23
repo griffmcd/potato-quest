@@ -25,6 +25,7 @@ func _connect_signals() -> void:
 	# Connect to network signals
 	network.player_joined.connect(_on_player_joined)
 	network.player_moved.connect(_on_player_moved)
+	network.player_rotated.connect(_on_player_rotated)
 	network.player_left.connect(_on_player_left)
 	network.lobby_state_received.connect(_on_lobby_state_received)
 	network.joined_lobby.connect(_on_joined_lobby)
@@ -83,6 +84,18 @@ func _on_player_moved(p_id: String, player_position: Dictionary) -> void:
 		var remote_player = remote_players[p_id]
 		var new_pos = Vector3(player_position.x, player_position.y, player_position.z)
 		remote_player.update_position(new_pos)
+
+
+## Called when a player rotates
+func _on_player_rotated(p_id: String, rotation_data: Dictionary) -> void:
+	# Don't update our own player
+	if p_id == network.player_id:
+		return
+
+	# Update remote player rotation
+	if remote_players.has(p_id):
+		var remote_player = remote_players[p_id]
+		remote_player.update_rotation(rotation_data)
 
 
 ## Called when a player leaves

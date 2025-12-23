@@ -12,7 +12,9 @@ var player_username: String = ""
 
 # Position interpolation
 var target_position: Vector3 = Vector3.ZERO
-var target_rotation: float = 0.0
+
+# Rotation interpolation
+var target_body_rotation: float = 0.0  # Body Y rotation (which way character faces)
 
 # Optional: Reference to label showing username
 var username_label: Label3D = null
@@ -36,19 +38,21 @@ func _physics_process(delta: float) -> void:
 	# Smoothly interpolate to target position
 	global_position = global_position.lerp(target_position, interpolation_speed * delta)
 
-	# Smoothly interpolate rotation
-	rotation.y = lerp_angle(rotation.y, target_rotation, interpolation_speed * delta)
+	# Smoothly interpolate body rotation
+	var body = $Body
+	body.rotation.y = lerp_angle(body.rotation.y, target_body_rotation, interpolation_speed * delta)
 
 
 ## Update the target position for this remote player
 func update_position(new_position: Vector3) -> void:
-	# Calculate rotation based on movement direction
-	var direction = new_position - target_position
-
-	if direction.length() > 0.1:
-		target_rotation = atan2(direction.x, direction.z)
-
 	target_position = new_position
+
+
+## Update the target rotation for this remote player
+func update_rotation(rotation_data: Dictionary) -> void:
+	# rotation_data contains: pitch, yaw, rotation_y
+	# For now, we only care about rotation_y (body rotation)
+	target_body_rotation = rotation_data.get("rotation_y", 0.0)
 
 
 ## Set the player's username (updates label)

@@ -48,13 +48,15 @@ func _physics_process(delta: float) -> void:
 		# Note: input_dir.y is negative for W (forward), positive for S (backward)
 		var direction = (camera_right * input_dir.x - camera_forward * input_dir.y).normalized()
 
+		# rotate body to face movement direction 
+		if direction.length() > 0.01:
+			var target_rotation = atan2(direction.x, direction.z) 
+			var body = $Body
+			body.rotation.y = lerp_angle(body.rotation.y, target_rotation, rotation_speed * delta)
+
 		# Move the character
 		velocity.x = direction.x * move_speed
 		velocity.z = direction.z * move_speed
-
-		# Don't rotate the player body - let it stay at 0
-		# The camera handles all rotation
-		# (We can add body rotation back later only for visual purposes in third-person)
 	else:
 		# Decelerate when no input
 		velocity.x = move_toward(velocity.x, 0, move_speed * delta * 5)
@@ -129,4 +131,4 @@ func _get_camera_pitch() -> float:
 
 func _get_current_rotation() -> Vector3:
 	var camera_rig = $CameraRig
-	return Vector3(_get_camera_pitch(), camera_rig.rotation.y, rotation.y)
+	return Vector3(_get_camera_pitch(), camera_rig.rotation.y, $Body.rotation.y)

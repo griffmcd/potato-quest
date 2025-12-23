@@ -1,20 +1,18 @@
-[gd_scene load_steps=5 format=3 uid="uid://b1jgetthpr4ox"]
+[gd_scene load_steps=4 format=3 uid="uid://b1jgetthpr4ox"]
 
 [ext_resource type="Script" uid="uid://nuvfmbsuxw1b" path="res://scripts/remote_player.gd" id="1_bj1mr"]
-
-[sub_resource type="CapsuleMesh" id="CapsuleMesh_n407u"]
-
-[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_bbtsb"]
-albedo_color = Color(0.86, 0, 0.129, 1)
+[ext_resource type="PackedScene" uid="uid://bt0dkryn3ww4v" path="res://assets/characters/Characters_psx/Models/Male/Character_32.fbx" id="2_n407u"]
 
 [sub_resource type="CapsuleShape3D" id="CapsuleShape3D_qalt5"]
+radius = 0.375
+height = 2.1
 
 [node name="RemotePlayer" type="CharacterBody3D"]
 script = ExtResource("1_bj1mr")
 
-[node name="Body" type="MeshInstance3D" parent="."]
-mesh = SubResource("CapsuleMesh_n407u")
-surface_material_override/0 = SubResource("StandardMaterial3D_bbtsb")
-
 [node name="CollisionShape" type="CollisionShape3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.059, 0)
 shape = SubResource("CapsuleShape3D_qalt5")
+
+[node name="Body" parent="." instance=ExtResource("2_n407u")]
+transform = Transform3D(0.5, 0, 0, 0, 0.5, 0, 0, 0, 0.5, 0, 0, 0)
