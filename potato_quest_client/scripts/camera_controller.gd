@@ -18,15 +18,20 @@ var mouse_captured: bool = false
 var chat_mode: bool = false  # True when chat is active
 
 var camera_pitch: float = 0.0 # vertical rotation
-var camera_yaw: float = 0.0 # horizontal rotation 
+var camera_yaw: float = 0.0 # horizontal rotation
 
 func _ready() -> void:
-	camera_rig = self 
+	camera_rig = self
 	player = get_parent()
 	first_person_camera = get_node("FirstPersonCamera")
 	third_person_camera = get_node("ThirdPersonArm/ThirdPersonCamera")
 	player_body = player.get_node("Body")
 	player_body.visible = false
+
+	# Initialize camera to face forward (-Z direction in Godot)
+	camera_yaw = -PI / 2.0
+	camera_rig.rotation.y = camera_yaw
+
 	toggle_mouse_capture(true) 
 
 
@@ -48,13 +53,17 @@ func _input(event: InputEvent) -> void:
 		handle_mouse_look(event.relative)
 
 func handle_mouse_look(mouse_delta: Vector2) -> void:
+	# Update yaw (horizontal rotation)
 	camera_yaw -= mouse_delta.x * mouse_sensitivity
+
+	# Update pitch (vertical rotation, clamped)
 	camera_pitch -= mouse_delta.y * mouse_sensitivity
-	camera_pitch = clamp(camera_pitch, 
+	camera_pitch = clamp(camera_pitch,
 			deg_to_rad(-vertical_look_limit),
 			deg_to_rad(vertical_look_limit))
 
-	camera_rig.rotation.y = camera_yaw 
+	# Apply rotations
+	camera_rig.rotation.y = camera_yaw
 
 	if is_first_person:
 		first_person_camera.rotation.x = camera_pitch
@@ -62,9 +71,10 @@ func handle_mouse_look(mouse_delta: Vector2) -> void:
 		third_person_camera.rotation.x = camera_pitch
 	
 func toggle_perspective() -> void:
-	is_first_person = !is_first_person 
-	first_person_camera.current = is_first_person 
-	third_person_camera.current = !is_first_person 
+	is_first_person = !is_first_person
+	first_person_camera.current = is_first_person
+	third_person_camera.current = !is_first_person
+
 	# toggle body visibility (hidden in 1st person)
 	player_body.visible = !is_first_person
 

@@ -7,6 +7,7 @@ extends CharacterBody3D
 @export var move_speed: float = 5.0
 @export var rotation_speed: float = 10.0
 @export var position_send_interval: float = 0.1  # Send position every 100ms
+@export var model_forward_offset: float = 0.0  ## Rotation offset to align model's forward with -Z (in radians)
 
 # Movement tracking
 var _last_sent_position: Vector3 = Vector3.ZERO
@@ -32,6 +33,11 @@ func _physics_process(delta: float) -> void:
 
 	# Get camera rig reference for camera-relative movement
 	var camera_rig = $CameraRig
+	var body = $Body
+
+	# Body always faces camera direction (both first and third person)
+	# Apply model-specific forward offset to compensate for different mesh orientations
+	body.rotation.y = camera_rig.rotation.y + model_forward_offset
 
 	if input_dir.length() > 0:
 		# Calculate movement direction relative to camera
@@ -47,12 +53,6 @@ func _physics_process(delta: float) -> void:
 		# input_dir.x is left/right (A/D), input_dir.y is forward/back (W/S)
 		# Note: input_dir.y is negative for W (forward), positive for S (backward)
 		var direction = (camera_right * input_dir.x - camera_forward * input_dir.y).normalized()
-
-		# rotate body to face movement direction 
-		if direction.length() > 0.01:
-			var target_rotation = atan2(direction.x, direction.z) 
-			var body = $Body
-			body.rotation.y = lerp_angle(body.rotation.y, target_rotation, rotation_speed * delta)
 
 		# Move the character
 		velocity.x = direction.x * move_speed
@@ -74,14 +74,13 @@ func _physics_process(delta: float) -> void:
 	# Send position updates to server
 	_update_position_sending(delta)
 
-	# track rotation changes 
+	# track rotation changes
 	if _rotation_changed():
 		var current_pitch = _get_camera_pitch()
-		var current_yaw = camera_rig.rotation.y 
-		var current_body_rotation = rotation.y 
+		var current_yaw = camera_rig.rotation.y
+		var current_body_rotation = $Body.rotation.y
 
 		_last_sent_rotation = Vector3(current_pitch, current_yaw, current_body_rotation)
-		print("Rotation changed - Pitch: ", rad_to_deg(current_pitch), " degrees, Yaw: ", rad_to_deg(current_yaw), " degrees, Body: ", rad_to_deg(current_body_rotation), " degreees.")
 
 
 
@@ -131,4 +130,5 @@ func _get_camera_pitch() -> float:
 
 func _get_current_rotation() -> Vector3:
 	var camera_rig = $CameraRig
-	return Vector3(_get_camera_pitch(), camera_rig.rotation.y, $Body.rotation.y)
+	# Send camera rotation (not body rotation) so remote players can apply their own model offset
+	return Vector3(_get_camera_pitch(), camera_rig.rotation.y, camera_rig.rotation.y)

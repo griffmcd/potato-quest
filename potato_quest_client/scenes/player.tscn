@@ -10,9 +10,10 @@ height = 2.1
 
 [node name="Player" type="CharacterBody3D" groups=["player"]]
 script = ExtResource("1_3vyb7")
+model_forward_offset = 1.5708
 
 [node name="CollisionShape" type="CollisionShape3D" parent="."]
-transform = Transform3D(0.716, 0, 0, 0, 1, 0, 0, 0, 0.716, 0, 1.05932, 0)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.05932, 0)
 shape = SubResource("CapsuleShape3D_dqkch")
 
 [node name="CameraRig" type="Node3D" parent="."]
@@ -23,7 +24,7 @@ transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 2.04534, 0)
 current = true
 
 [node name="ThirdPersonArm" type="SpringArm3D" parent="CameraRig"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.6, 0)
+transform = Transform3D(-1, 0, 1.50996e-07, 0, 1, 0, -1.50996e-07, 0, -1, 0, 1.6, 0)
 spring_length = 3.0
 margin = 0.2
 
@@ -31,4 +32,4 @@ margin = 0.2
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.5, 0)
 
 [node name="Body" parent="." instance=ExtResource("3_qhqgy")]
-transform = Transform3D(0.5, 0, 0, 0, 0.5, 0, 0, 0, 0.5, 0, 0, 0)
+transform = Transform3D(0, 0, 0.5, 0, 0.5, 0, -0.5, 0, 0, 0, 0, 0)
