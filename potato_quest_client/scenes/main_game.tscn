@@ -1,4 +1,4 @@
-[gd_scene load_steps=9 format=3 uid="uid://b0x3re0tmu8kj"]
+[gd_scene load_steps=11 format=3 uid="uid://b0x3re0tmu8kj"]
 
 [ext_resource type="Script" uid="uid://dkd60fxd8dvhx" path="res://scripts/main_game.gd" id="1_d2op2"]
 [ext_resource type="PackedScene" uid="uid://b1jgetthpr4ox" path="res://scenes/remote_player.tscn" id="2_0rdsr"]
@@ -14,8 +14,19 @@ albedo_color = Color(0.1088, 0.34, 0.12036, 1)
 [sub_resource type="BoxShape3D" id="BoxShape3D_70vka"]
 size = Vector3(100, 0.1, 100)
 
+[sub_resource type="ProceduralSkyMaterial" id="ProceduralSkyMaterial_0rdsr"]
+sky_top_color = Color(0.120777, 0.517392, 1, 1)
+sky_horizon_color = Color(0.616518, 0.803155, 1, 1)
+ground_bottom_color = Color(5.35455e-07, 0.217257, 0.0680162, 1)
+
+[sub_resource type="Sky" id="Sky_ipu61"]
+sky_material = SubResource("ProceduralSkyMaterial_0rdsr")
+
 [sub_resource type="Environment" id="Environment_2l77h"]
 background_mode = 2
+sky = SubResource("Sky_ipu61")
+ambient_light_source = 2
+ambient_light_color = Color(0.647059, 0.647059, 0.647059, 1)
 
 [node name="MainGame" type="Node3D" node_paths=PackedStringArray("player")]
 script = ExtResource("1_d2op2")
@@ -32,7 +43,8 @@ surface_material_override/0 = SubResource("StandardMaterial3D_wi4c7")
 shape = SubResource("BoxShape3D_70vka")
 
 [node name="Sun" type="DirectionalLight3D" parent="."]
-transform = Transform3D(0.707107, -0.5, 0.5, 0, 0.707107, 0.707107, -0.707107, -0.5, 0.5, 0, 0, 0)
+transform = Transform3D(0.707107, -0.5, 0.5, 0, 0.707107, 0.707107, -0.707107, -0.5, 0.5, 49.0946, 32.0645, 23.1643)
+shadow_enabled = true
 
 [node name="AmbientEnvironment" type="Node3D" parent="."]
 
