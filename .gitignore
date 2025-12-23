@@ -23,6 +23,9 @@ export_presets.cfg
 data_*/
 mono_crash.*.json
 
+# assets (for now, anyway)
+potato_quest_client/assets/
+
 # Godot exported builds (you may want to commit these to releases)
 potato_quest_client/builds/
 *.pck
