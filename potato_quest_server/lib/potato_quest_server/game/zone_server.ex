@@ -101,7 +101,7 @@ defmodule PotatoQuestServer.Game.ZoneServer do
       nil ->
         {:reply, {:error, :enemy_not_found}, state}
       enemy ->
-        {:ok, player_state} = PotatoQuestServer.Game.PlayerSession.get_state(player_id)
+        player_state  = PotatoQuestServer.Game.PlayerSession.get_state(player_id)
         damage = calculate_damage(player_state.stats)
         new_health = max(0, enemy.health - damage)
         updated_enemy = %{enemy | health: new_health}

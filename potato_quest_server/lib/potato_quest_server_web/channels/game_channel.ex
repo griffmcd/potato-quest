@@ -11,7 +11,13 @@ defmodule PotatoQuestServerWeb.GameChannel do
 
     # Assign username to socket
     socket = assign(socket, :username, username)
-    socket = assign(socket, :player_id, generate_player_id())
+    player_id = generate_player_id()
+    socket = assign(socket, :player_id, player_id)
+    # start player genserver
+    {:ok, _pid} = DynamicSupervisor.start_child(
+      PotatoQuestServer.Game.PlayerSupervisor,
+      {PotatoQuestServer.Game.PlayerSession, player_id: player_id, username: username}
+    )
     # get current player count so that we can spawn the player in empty space
     # we will calculate spawn position in a circle
     player_count = map_size(Presence.list(socket))
@@ -153,7 +159,7 @@ defmodule PotatoQuestServerWeb.GameChannel do
           item_id: item_id,
           player_id: player_id
         })
-        {:ok, player_state} = PotatoQuestServer.Game.PlayerSession.get_state(player_id)
+        player_state = PotatoQuestServer.Game.PlayerSession.get_state(player_id)
         push(socket, "inventory:updated", %{gold: player_state.gold})
         {:noreply, socket}
       {:error, reason} ->
