@@ -28,6 +28,11 @@ signal player_rotated(player_id: String, rotation: Dictionary)
 signal player_left(player_id: String, username: String)
 signal lobby_state_received(players: Array)
 signal chat_message_received(player_id: String, username: String, message: String)
+signal zone_state_received(enemies: Array)
+signal enemy_damaged(enemy_id: String, damage: int, health: int, attacker_id: String) 
+signal enemy_died(enemy_id: String, loot: Dictionary)
+signal item_picked_up(item_id: String, player_id: String)
+signal inventory_updated(gold: int)
 
 
 func _ready() -> void:
@@ -140,6 +145,41 @@ func request_lobby_state() -> void:
 	}
 	_send_message(message)
 
+func request_zone_state() -> void:
+	if not _connected or player_id.is_empty():
+		print("WARNING: Cannot request zone state - not connected or no player_id")
+		return 
+	print("NetworkManager: Requesting zone state")
+	var message = {
+		"topic": GAME_TOPIC,
+		"event": "zone:request_state",
+		"payload": {},
+		"ref": str(_get_next_ref())
+	}
+	_send_message(message)
+
+func send_attack(enemy_id: String) -> void:
+	if not _connected or player_id.is_empty():
+		return 
+
+	var message = {
+		"topic": GAME_TOPIC,
+		"event": "player:attack",
+		"payload": {"enemy_id": enemy_id},
+		"ref": str(_get_next_ref())
+	}
+	_send_message(message)
+
+func send_pickup_item(item_id: String) -> void:
+	if not _connected or player_id.is_empty():
+		return 
+	var message = {
+		"topic": GAME_TOPIC,
+		"event": "player:pickup_item",
+		"payload": {"item_id": item_id},
+		"ref": str(_get_next_ref())
+	} 
+	_send_message(message)
 
 ## Send a message through the WebSocket
 func _send_message(message: Dictionary) -> void:
@@ -174,6 +214,16 @@ func _handle_message(message_text: String) -> void:
 			_handle_lobby_state(payload)
 		"chat:message":
 			_handle_chat_message(payload)
+		"zone:state":
+			_handle_zone_state(payload)
+		"enemy:damaged":
+			_handle_enemy_damaged(payload)
+		"enemy:died":
+			_handle_enemy_died(payload)
+		"item:picked_up":
+			_handle_item_picked_up(payload)
+		"inventory:updated":
+			_handle_inventory_updated(payload)
 		_:
 			print("Unknown event: ", event)
 
@@ -226,6 +276,36 @@ func _handle_chat_message(payload: Dictionary) -> void:
 
 	print("[Chat] ", p_username, ": ", message)
 	chat_message_received.emit(p_id, p_username, message)
+
+func _handle_zone_state(payload: Dictionary) -> void:
+	var enemies = payload.get("enemies", [])
+	print("Zone state: ", enemies.size(), " enemies")
+	zone_state_received.emit(enemies)
+
+func _handle_enemy_damaged(payload: Dictionary) -> void:
+	var enemy_id = payload.get("enemy_id", "")
+	var damage = payload.get("damage", 0)
+	var health = payload.get("health", 0)
+	var attacker_id = payload.get("attacker_id", "")
+
+	enemy_damaged.emit(enemy_id, damage, health, attacker_id)
+
+func _handle_enemy_died(payload: Dictionary) -> void:
+	var enemy_id = payload.get("enemy_id", "")
+	var loot = payload.get("loot", {})
+
+	enemy_died.emit(enemy_id, loot)
+
+func _handle_item_picked_up(payload: Dictionary) -> void:
+	var item_id = payload.get("item_id", "")
+	var this_player_id = payload.get("player_id", "")
+
+	item_picked_up.emit(item_id, this_player_id) 
+
+func _handle_inventory_updated(payload: Dictionary) -> void:
+	var gold = payload.get("gold", 0)
+	print("Inventory updated - Gold: ", gold) 
+	inventory_updated.emit(gold)
 
 
 func _get_next_ref() -> int:

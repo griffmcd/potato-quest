@@ -31,6 +31,10 @@ defmodule PotatoQuestServer.Game.PlayerSession do
     GenServer.call(via_tuple(player_id), :get_position)
   end
 
+  def add_gold(player_id, amount) do
+    GenServer.call(via_tuple(player_id), {:add_gold, amount})
+  end
+
   # Server Callbacks
 
   @impl true
@@ -75,6 +79,13 @@ defmodule PotatoQuestServer.Game.PlayerSession do
   @impl true
   def handle_call(:get_position, _from, state) do
     {:reply, state.position, state}
+  end
+
+  @impl true
+  def handle_call({:add_gold, amount}, _from, state) do
+    new_gold = state.gold + amount
+    Logger.info("Player #{state.username} received #{amount} gold (total: #{new_gold})")
+    {:reply, :ok, %{state | gold: new_gold}}
   end
 
   @impl true

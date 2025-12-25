@@ -26,6 +26,18 @@ defmodule PotatoQuestServer.Game.ZoneServer do
     GenServer.call(via_tuple(zone_id), :get_players)
   end
 
+  def get_enemies(zone_id) do
+    GenServer.call(via_tuple(zone_id), :get_enemies)
+  end
+
+  def handle_attack(zone_id, player_id, enemy_id) do
+    GenServer.call(via_tuple(zone_id), {:attack, player_id, enemy_id})
+  end
+
+  def handle_pickup(zone_id, player_id, item_id) do
+    GenServer.call(via_tuple(zone_id), {:pickup_item, player_id, item_id})
+  end
+
   # Server Callbacks
 
   @impl true
@@ -38,13 +50,27 @@ defmodule PotatoQuestServer.Game.ZoneServer do
       players: %{}, # %{player_id => %{username, position}}
       enemies: [],
       items: [],
-      seed: :rand.uniform(1_000_000)
+      seed: :rand.uniform(1_000_000),
+      enemy_counter: 0,
+      item_counter: 0,
+      tick_ref: nil
+    }
+    test_enemy = %{
+      id: "enemy_0",
+      type: :pig_man,
+      position: %{x: 5.0, y: 0.0, z: 0.0},
+      health: 50,
+      max_health: 50,
+      state: :alive
     }
 
-    # For now, we won't start a tick loop
-    # We'll add that when we implement enemy AI
+    tick_ref = schedule_world_tick()
 
-    {:ok, state}
+    {:ok, %{ state |
+      enemies: [test_enemy],
+      enemy_counter: 1,
+      tick_ref: tick_ref
+    }}
   end
 
   @impl true
@@ -67,6 +93,55 @@ defmodule PotatoQuestServer.Game.ZoneServer do
     }
 
     {:reply, {:ok, zone_state}, new_state}
+  end
+
+  @impl true
+  def handle_call({:attack, player_id, enemy_id}, _from, state) do
+    case find_enemy(state.enemies, enemy_id) do
+      nil ->
+        {:reply, {:error, :enemy_not_found}, state}
+      enemy ->
+        {:ok, player_state} = PotatoQuestServer.Game.PlayerSession.get_state(player_id)
+        damage = calculate_damage(player_state.stats)
+        new_health = max(0, enemy.health - damage)
+        updated_enemy = %{enemy | health: new_health}
+        enemies = update_enemy(state.enemies, updated_enemy)
+
+        if new_health == 0 do
+          {loot_item, new_counter} = spawn_loot(enemy, state.item_counter)
+          new_state = %{state |
+            enemies: mark_enemy_dead(enemies, enemy_id),
+            items: [loot_item | state.items],
+            item_counter: new_counter
+          }
+          {:reply, {:ok, {:enemy_died, damage, loot_item}}, new_state}
+        else
+          {:reply, {:ok, {:enemy_damaged, damage, new_health}},
+            %{state | enemies: enemies }}
+        end
+    end
+  end
+
+  @impl true
+  def handle_call({:pickup_item, player_id, item_id}, _from, state) do
+    case find_item(state.items, item_id) do
+      nil -> {:reply, {:error, :item_not_found}, state}
+      item ->
+        items = remove_item(state.items, item_id)
+        PotatoQuestServer.Game.PlayerSession.add_gold(player_id, item.value)
+        {:reply, {:ok, item}, %{state | items: items}}
+    end
+  end
+
+  @impl true
+  def handle_call(:get_enemies, _from, state) do
+    {:reply, state.enemies, state}
+  end
+
+  @impl true
+  def handle_info(:world_tick, state) do
+    tick_ref = schedule_world_tick()
+    {:noreply, %{state | tick_ref: tick_ref }}
   end
 
   @impl true
@@ -98,5 +173,47 @@ defmodule PotatoQuestServer.Game.ZoneServer do
     Enum.map(players, fn {player_id, player_data} ->
       Map.put(player_data, :player_id, player_id)
     end)
+  end
+
+  defp schedule_world_tick do
+    Process.send_after(self(), :world_tick, 200) # 5 ticks/sec
+  end
+
+  defp calculate_damage(stats) do
+    stats.str * 2
+  end
+
+  defp spawn_loot(enemy, counter) do
+    item = %{
+      id: "item_#{counter}",
+      item_type: :gold_coin,
+      position: enemy.position,
+      value: 10
+    }
+    {item, counter + 1}
+  end
+
+  defp find_enemy(enemies, enemy_id) do
+    Enum.find(enemies, fn e -> e.id == enemy_id && e.state == :alive end)
+  end
+
+  defp update_enemy(enemies, updated_enemy) do
+    Enum.map(enemies, fn e ->
+      if e.id == updated_enemy.id, do: updated_enemy, else: e
+    end)
+  end
+
+  defp mark_enemy_dead(enemies, enemy_id) do
+    Enum.map(enemies, fn e ->
+      if e.id == enemy_id, do: %{e | state: :dead}, else: e
+    end)
+  end
+
+  defp find_item(items, item_id) do
+    Enum.find(items, fn i -> i.id == item_id end)
+  end
+
+  defp remove_item(items, item_id) do
+    Enum.reject(items, fn i -> i.id == item_id end)
   end
 end

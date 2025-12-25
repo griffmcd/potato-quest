@@ -1,0 +1,33 @@
+[gd_scene load_steps=5 format=3 uid="uid://dmnhkmmb165ae"]
+
+[ext_resource type="PackedScene" uid="uid://3l8tyq3lwbpe" path="res://assets/characters/Characters_psx/Models/Killers/Character_Killer_05.fbx" id="1_7p1mj"]
+[ext_resource type="Script" uid="uid://c17e87vjjx5d6" path="res://scripts/enemy.gd" id="1_md0e3"]
+
+[sub_resource type="CapsuleShape3D" id="CapsuleShape3D_md0e3"]
+radius = 0.375
+height = 2.1
+
+[sub_resource type="CapsuleShape3D" id="CapsuleShape3D_7p1mj"]
+radius = 0.375
+height = 2.1
+
+[node name="Enemy" type="CharacterBody3D"]
+script = ExtResource("1_md0e3")
+
+[node name="Body" parent="." instance=ExtResource("1_7p1mj")]
+transform = Transform3D(0.44, 0, 0, 0, 0.44, 0, 0, 0, 0.44, 0.0557277, 0, 0)
+
+[node name="Label3D" type="Label3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 2.5, 0)
+billboard = 1
+text = "HP: 50/50"
+
+[node name="Hurtbox" type="Area3D" parent="."]
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="Hurtbox"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.059, 0)
+shape = SubResource("CapsuleShape3D_md0e3")
+
+[node name="Hitbox" type="CollisionShape3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.059, 0)
+shape = SubResource("CapsuleShape3D_7p1mj")

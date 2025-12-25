@@ -109,6 +109,60 @@ defmodule PotatoQuestServerWeb.GameChannel do
   end
 
   @impl true
+  def handle_in("zone:request_state", _payload, socket) do
+    zone_id = "spawn_town"
+    enemies = PotatoQuestServer.Game.ZoneServer.get_enemies(zone_id)
+    push(socket, "zone:state", %{enemies: enemies})
+    {:noreply, socket}
+  end
+
+  @impl true
+  def handle_in("player:attack", %{"enemy_id" => enemy_id}, socket) do
+    player_id = socket.assigns.player_id
+    zone_id = "spawn_town"  # TODO: should not be hardcoded. Later phase work
+
+    case PotatoQuestServer.Game.ZoneServer.handle_attack(zone_id, player_id, enemy_id) do
+      {:ok, {:enemy_damaged, damage, new_health}} ->
+        broadcast!(socket, "enemy:damaged", %{
+          enemy_id: enemy_id,
+          damage: damage,
+          health: new_health,
+          attacker_id: player_id
+        })
+        {:noreply, socket}
+      {:ok, {:enemy_died, damage, loot_item}} ->
+        broadcast!(socket, "enemy:died", %{
+          enemy_id: enemy_id,
+          loot: loot_item
+        })
+        {:noreply, socket}
+      {:error, reason} ->
+        push(socket, "error", %{reason: to_string(reason)})
+        {:noreply, socket}
+    end
+  end
+
+  @impl true
+  def handle_in("player:pickup_item", %{"item_id" => item_id}, socket) do
+    player_id = socket.assigns.player_id
+    zone_id = "spawn_town"
+
+    case PotatoQuestServer.Game.ZoneServer.handle_pickup(zone_id, player_id, item_id) do
+      {:ok, item} ->
+        broadcast!(socket, "item:picked_up", %{
+          item_id: item_id,
+          player_id: player_id
+        })
+        {:ok, player_state} = PotatoQuestServer.Game.PlayerSession.get_state(player_id)
+        push(socket, "inventory:updated", %{gold: player_state.gold})
+        {:noreply, socket}
+      {:error, reason} ->
+        push(socket, "error", %{reason: to_string(reason)})
+        {:noreply, socket}
+    end
+  end
+
+  @impl true
   def terminate(_reason, socket) do
     # Broadcast that player left
     broadcast!(socket, "player:left", %{
