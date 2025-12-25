@@ -5,19 +5,11 @@ extends CharacterBody3D
 ## Spawned dynamically by MainGame when players join.
 
 @export var interpolation_speed: float = 10.0
-@export var model_forward_offset: float = 0.0  ## Rotation offset to align model's forward with -Z (in radians)
 
-# Player info
 var player_id: String = ""
 var player_username: String = ""
-
-# Position interpolation
 var target_position: Vector3 = Vector3.ZERO
-
-# Rotation interpolation
 var target_body_rotation: float = 0.0  # Body Y rotation (which way character faces)
-
-# Optional: Reference to label showing username
 var username_label: Label3D = null
 
 
@@ -42,7 +34,7 @@ func _physics_process(delta: float) -> void:
 	# Smoothly interpolate body rotation
 	# Apply model-specific forward offset to compensate for different mesh orientations
 	var body = $Body
-	body.rotation.y = lerp_angle(body.rotation.y, target_body_rotation + model_forward_offset, interpolation_speed * delta)
+	body.rotation.y = lerp_angle(body.rotation.y, target_body_rotation, interpolation_speed * delta)
 
 
 ## Update the target position for this remote player

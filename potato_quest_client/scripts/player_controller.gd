@@ -81,6 +81,8 @@ func _physics_process(delta: float) -> void:
 		var current_body_rotation = $Body.rotation.y
 
 		_last_sent_rotation = Vector3(current_pitch, current_yaw, current_body_rotation)
+		# Send rotation update to server immediately
+		network.send_move(global_position, _get_current_rotation())
 
 
 
@@ -129,6 +131,5 @@ func _get_camera_pitch() -> float:
 		return camera_rig.third_person_camera.rotation.x
 
 func _get_current_rotation() -> Vector3:
-	var camera_rig = $CameraRig
-	# Send camera rotation (not body rotation) so remote players can apply their own model offset
-	return Vector3(_get_camera_pitch(), camera_rig.rotation.y, camera_rig.rotation.y)
+	var camera_rig = $CameraRig 
+	return Vector3(_get_camera_pitch(), camera_rig.rotation.y, $Body.rotation.y)
