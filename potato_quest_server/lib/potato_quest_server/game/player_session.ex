@@ -53,6 +53,10 @@ defmodule PotatoQuestServer.Game.PlayerSession do
     GenServer.call(via_tuple(player_id), {:equip_item, instance_id})
   end
 
+  def unequip_item(player_id, slot) do
+    GenServer.call(via_tuple(player_id), {:unequip_item, slot})
+  end
+
   # Server Callbacks
 
   @impl true
@@ -156,6 +160,29 @@ defmodule PotatoQuestServer.Game.PlayerSession do
             {:reply, {:ok, new_state.equipment, new_state.stats}, new_state}
           _occupied ->
             {:reply, {:error, :slot_occupied}, state}
+        end
+    end
+  end
+
+  @impl true
+  def handle_call({:unequip_item, slot}, _from, state) do
+    case state.equipment[slot] do
+      nil ->
+        {:reply, {:error, :slot_empty}, state}
+      equipped_item ->
+        case find_empty_slot(state.inventory) do
+          nil -> {:reply, {:error, :inventory_full}, state}
+          slot_num ->
+            new_equipment = Map.put(state.equipment, slot, nil)
+            inventory_item = %{
+              slot: slot_num,
+              instance_id: equipped_item.instance_id,
+              template_id: equipped_item.template_id
+            }
+            new_inventory = [inventory_item | state.inventory]
+            new_state = %{state | equipment: new_equipment, inventory: new_inventory}
+            new_state = recalculate_stats(new_state)
+            {:reply, {:ok, new_state.equipment, new_state.stats}, new_state}
         end
     end
   end

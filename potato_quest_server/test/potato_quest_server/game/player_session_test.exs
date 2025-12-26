@@ -274,26 +274,33 @@ defmodule PotatoQuestServer.Game.PlayerSessionTest do
     end
 
     test "unequip_item/2 removes an item from an equipment slot", %{player_id: player_id} do
-      state = PlayerSession.get_state(player_id)
-      equipped_sword = Enum.find(state.equipment, fn item -> item.template_id == "bronze_sword" end)
-      {:ok, new_equipment, new_stats} = PlayerSession.unequip_item(player_id, equipped_sword.instance_id)
-      assert new_equipment.sword == nil
-      assert new_stats.str == 5
+      {:ok, new_equipment, new_stats} = PlayerSession.unequip_item(player_id, :weapon)
+      assert new_equipment.weapon == nil
+      assert new_stats.str == 10
+      assert new_stats.damage == 20
     end
 
     test "unequip_item/2 returns the unequipped item to inventory", %{player_id: player_id} do
       initial_state = PlayerSession.get_state(player_id)
       initial_count = length(initial_state.inventory)
-      equipped_sword = Enum.find(initial_state.equipment, fn item -> item.template_id == "bronze_sword" end)
-      PlayerSession.unequip_item(player_id, equipped_sword.instance_id)
+      equipped_weapon = initial_state.equipment.weapon
+      PlayerSession.unequip_item(player_id, :weapon)
       final_state = PlayerSession.get_state(player_id)
       assert length(final_state.inventory) == initial_count + 1
-      assert Enum.any?(final_state.inventory, fn item -> item.instance_id == equipped_sword.instance_id end)
+      assert Enum.any?(final_state.inventory, fn item -> item.instance_id == equipped_weapon.instance_id end)
     end
 
     test "unequip_item/2 returns error when item not equipped", %{player_id: player_id} do
-      {:error, error_type} = PlayerSession.unequip_item(player_id, "not_equipped_instance_id")
-      assert error_type == :item_not_found
+      {:error, error_type} = PlayerSession.unequip_item(player_id, :shield)
+      assert error_type == :slot_empty
+    end
+
+    test "unequip_item/2 returns error when inventory is full", %{player_id: player_id} do
+      Enum.each(1..26, fn _ ->
+        PlayerSession.add_item(player_id, "leather_tunic")
+      end)
+      {:error, error_type} = PlayerSession.unequip_item(player_id, :weapon)
+      assert error_type == :inventory_full
     end
   end
 
