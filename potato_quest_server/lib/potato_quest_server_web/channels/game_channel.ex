@@ -46,6 +46,10 @@ defmodule PotatoQuestServerWeb.GameChannel do
       online_at: inspect(System.system_time(:second))
     })
 
+    # Send lobby state to the new player
+    players = get_lobby_players(socket)
+    push(socket, "lobby:state", %{players: players})
+
     # Broadcast that a new player joined
     broadcast!(socket, "player:joined", %{
       player_id: socket.assigns.player_id,

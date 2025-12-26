@@ -18,14 +18,6 @@ defmodule PotatoQuestServer.Game.ItemCatalog do
     stackable: boolean()
   }
 
-  def all_items do
-    @items
-  end
-
-  def get_item(item_id) do
-    Enum.find(@items, fn item -> item.id == item_id end)
-  end
-
   @items [
     %{id: "bronze_sword",
       name: "Bronze Sword",
@@ -93,4 +85,11 @@ defmodule PotatoQuestServer.Game.ItemCatalog do
     }
   ]
 
+  def all_items do
+    @items
+  end
+
+  def get_item(item_id) do
+    Enum.find(@items, fn item -> item.id == item_id end)
+  end
 end

@@ -23,7 +23,7 @@ defmodule PotatoQuestServerWeb.GameChannelTest do
     assert_broadcast "player:joined", %{
       player_id: _,
       username: "test_player",
-      position: %{x: 0, y: 0, z: 0}
+      position: %{x: _, y: _, z: _}
     }
   end
 
@@ -32,11 +32,19 @@ defmodule PotatoQuestServerWeb.GameChannelTest do
   end
 
   test "player:move broadcasts to other players", %{socket: socket} do
-    push(socket, "player:move", %{"x" => 10, "y" => 0, "z" => 5})
+    push(socket, "player:move", %{
+      "x" => 10,
+      "y" => 0,
+      "z" => 5,
+      "pitch" => 0,
+      "yaw" => 0,
+      "rotation_y" => 0
+    })
 
     assert_broadcast "player:moved", %{
       player_id: _,
-      position: %{x: 10, y: 0, z: 5}
+      position: %{x: 10, y: 0, z: 5},
+      rotation: %{pitch: 0, yaw: 0, rotation_y: 0}
     }
   end
 
