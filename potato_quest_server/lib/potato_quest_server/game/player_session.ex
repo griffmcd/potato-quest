@@ -5,6 +5,8 @@ defmodule PotatoQuestServer.Game.PlayerSession do
   """
   use GenServer
 
+  alias PotatoQuestServer.Game.ItemCatalog, as: ItemCatalog
+
   require Logger
 
   # Client API
@@ -47,6 +49,10 @@ defmodule PotatoQuestServer.Game.PlayerSession do
     GenServer.call(via_tuple(player_id), {:drop_item, instance_id})
   end
 
+  def equip_item(player_id, instance_id) do
+    GenServer.call(via_tuple(player_id), {:equip_item, instance_id})
+  end
+
   # Server Callbacks
 
   @impl true
@@ -70,13 +76,11 @@ defmodule PotatoQuestServer.Game.PlayerSession do
         base_health: 100,
         base_max_health: 100,
         # calculated stats (base + equipment bonuses)
-        # TODO: this should probably not live here forever, but should
-        #  actually be calculated
-        str: 15,
-        def: 8,
-        dex: 10,
-        int: 10,
-        damage: 35,
+        str: 0,
+        def: 0,
+        dex: 0,
+        int: 0,
+        damage: 0,
 
         health: 100,
         max_health: 100,
@@ -97,6 +101,7 @@ defmodule PotatoQuestServer.Game.PlayerSession do
       gold: 30,
       connected: true
     }
+    state = recalculate_stats(state)
 
     {:ok, state}
   end
@@ -131,6 +136,27 @@ defmodule PotatoQuestServer.Game.PlayerSession do
         }
         new_inventory = [new_item | state.inventory]
         {:reply, {:ok, new_item}, %{state | inventory: new_inventory }}
+    end
+  end
+
+  @impl true
+  def handle_call({:equip_item, instance_id}, _from, state) do
+    case find_and_remove_item(state.inventory, instance_id) do
+      {:error, reason} ->
+        {:reply, {:error, reason}, state}
+      {:ok, item_instance, new_inventory} ->
+        # get item template to determine what slot it goes in
+        item_template = ItemCatalog.get_item(item_instance.template_id)
+        slot = item_template.slot
+        case state.equipment[slot] do
+          nil ->
+            new_equipment = Map.put(state.equipment, slot, item_instance)
+            new_state = %{state | equipment: new_equipment, inventory: new_inventory}
+            new_state = recalculate_stats(new_state)
+            {:reply, {:ok, new_state.equipment, new_state.stats}, new_state}
+          _occupied ->
+            {:reply, {:error, :slot_occupied}, state}
+        end
     end
   end
 
@@ -192,6 +218,52 @@ defmodule PotatoQuestServer.Game.PlayerSession do
         new_inventory = Enum.filter(inventory, fn item -> item.instance_id != instance_id end)
         {:ok, found_item, new_inventory}
     end
+  end
+
+  defp calculate_equipment_bonuses(equipment) do
+    Enum.reduce(equipment, %{
+      str_bonus: 0,
+      def_bonus: 0,
+      dex_bonus: 0,
+      int_bonus: 0},
+      fn {_slot, equipped_item}, acc ->
+        case equipped_item do
+          nil -> acc
+          item_instance ->
+            item = ItemCatalog.get_item(item_instance.template_id)
+            %{
+              str_bonus: acc.str_bonus + item.stats.str_bonus,
+              def_bonus: acc.def_bonus + item.stats.def_bonus,
+              dex_bonus: acc.dex_bonus + item.stats.dex_bonus,
+              int_bonus: acc.int_bonus + item.stats.int_bonus
+            }
+        end
+      end)
+  end
+
+  defp recalculate_stats(state) do
+    equipment_bonuses = calculate_equipment_bonuses(state.equipment)
+    weapon_damage = if state.equipment.weapon do
+      item = ItemCatalog.get_item(state.equipment.weapon.template_id)
+      item.stats.damage
+    else
+      0
+    end
+
+    total_str = state.stats.base_str + equipment_bonuses.str_bonus
+    total_def = state.stats.base_def + equipment_bonuses.def_bonus
+    total_dex = state.stats.base_dex + equipment_bonuses.dex_bonus
+    total_int = state.stats.base_int + equipment_bonuses.int_bonus
+    total_damage = weapon_damage + (total_str * 2)
+
+    updated_stats = Map.merge(state.stats, %{
+      str: total_str,
+      def: total_def,
+      dex: total_dex,
+      int: total_int,
+      damage: total_damage
+    })
+    %{state | stats: updated_stats }
   end
 
   defp generate_instance_id do

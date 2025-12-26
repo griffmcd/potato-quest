@@ -164,7 +164,7 @@ defmodule PotatoQuestServerWeb.GameChannel do
     zone_id = "spawn_town"
 
     case PotatoQuestServer.Game.ZoneServer.handle_pickup(zone_id, player_id, item_id) do
-      {:ok, item} ->
+      {:ok, _item} ->
         broadcast!(socket, "item:picked_up", %{
           item_id: item_id,
           player_id: player_id

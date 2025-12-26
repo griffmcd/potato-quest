@@ -75,7 +75,7 @@ defmodule PotatoQuestServer.Game.PlayerSessionTest do
       assert state.stats.base_dex == 10
       assert state.stats.base_int == 10
       assert state.stats.str == 15
-      assert state.stats.def == 8
+      assert state.stats.def == 5
     end
 
     test "initializes equipment with bronze_sword as weapon" do
@@ -266,6 +266,78 @@ defmodule PotatoQuestServer.Game.PlayerSessionTest do
     end
   end
 
+  describe "inventory management - unequip_item" do
+    setup do
+      player_id = unique_player_id()
+      start_supervised({PlayerSession, player_id: player_id, username: "test_user"})
+      %{player_id: player_id}
+    end
+
+    test "unequip_item/2 removes an item from an equipment slot", %{player_id: player_id} do
+      state = PlayerSession.get_state(player_id)
+      equipped_sword = Enum.find(state.equipment, fn item -> item.template_id == "bronze_sword" end)
+      {:ok, new_equipment, new_stats} = PlayerSession.unequip_item(player_id, equipped_sword.instance_id)
+      assert new_equipment.sword == nil
+      assert new_stats.str == 5
+    end
+
+    test "unequip_item/2 returns the unequipped item to inventory", %{player_id: player_id} do
+      initial_state = PlayerSession.get_state(player_id)
+      initial_count = length(initial_state.inventory)
+      equipped_sword = Enum.find(initial_state.equipment, fn item -> item.template_id == "bronze_sword" end)
+      PlayerSession.unequip_item(player_id, equipped_sword.instance_id)
+      final_state = PlayerSession.get_state(player_id)
+      assert length(final_state.inventory) == initial_count + 1
+      assert Enum.any?(final_state.inventory, fn item -> item.instance_id == equipped_sword.instance_id end)
+    end
+
+    test "unequip_item/2 returns error when item not equipped", %{player_id: player_id} do
+      {:error, error_type} = PlayerSession.unequip_item(player_id, "not_equipped_instance_id")
+      assert error_type == :item_not_found
+    end
+  end
+
+  describe "inventory management - equip_item" do
+    setup do
+      player_id = unique_player_id()
+      start_supervised({PlayerSession, player_id: player_id, username: "test_user"})
+      %{player_id: player_id}
+    end
+
+    test "equip_item/2 equips an item in an empty equipment slot", %{player_id: player_id} do
+      # get wooden shield instance_id from inventory
+      state = PlayerSession.get_state(player_id)
+      shield_item = Enum.find(state.inventory, fn item -> item.template_id == "wooden_shield" end)
+      {:ok, new_equipment, new_stats} = PlayerSession.equip_item(player_id, shield_item.instance_id)
+      assert new_equipment.shield != nil
+      assert new_equipment.shield.template_id == "wooden_shield"
+      assert new_equipment.shield.instance_id == shield_item.instance_id
+      assert new_stats.def == 8
+    end
+
+    test "equip_item/2 returns error when slot is occupied", %{player_id: player_id} do
+      state = PlayerSession.get_state(player_id)
+      sword_item = Enum.find(state.inventory, fn item -> item.template_id == "bronze_sword" end)
+      {:error, error_type} = PlayerSession.equip_item(player_id, sword_item.instance_id)
+      assert error_type == :slot_occupied
+    end
+
+    test "equip_item/2 returns error for non-existent instance_id", %{player_id: player_id} do
+      {:error, error_type} = PlayerSession.equip_item(player_id, "nonexistent_item_id")
+      assert error_type == :item_not_found
+    end
+
+    test "equip_item/2 removes item from inventory after equipping", %{player_id: player_id} do
+      initial_state = PlayerSession.get_state(player_id)
+      initial_count = length(initial_state.inventory)
+      shield_item = Enum.find(initial_state.inventory, fn item -> item.template_id == "wooden_shield" end)
+      PlayerSession.equip_item(player_id, shield_item.instance_id)
+      final_state = PlayerSession.get_state(player_id)
+      assert length(final_state.inventory) == initial_count - 1
+      refute Enum.any?(final_state.inventory, fn item -> item.instance_id == shield_item.instance_id end)
+    end
+  end
+
   describe "inventory management - remove_item" do
     setup do
       player_id = unique_player_id()
@@ -366,6 +438,32 @@ defmodule PotatoQuestServer.Game.PlayerSessionTest do
         [{^pid, _}] -> assert true
         _ -> flunk("Process not registered correctly")
       end
+    end
+  end
+
+  describe "stat calculation" do
+    test "initializes with correct calculated stats based on equipped weapon" do
+      player_id = unique_player_id()
+      start_supervised({PlayerSession, player_id: player_id, username: "test_user"})
+
+      state = PlayerSession.get_state(player_id)
+      # player starts with bronze_sword equipped (damage: 15, str_bonus: 5)
+      assert state.stats.str == 15
+      assert state.stats.def == 5
+
+      # damage = weapon.damage (15) + (total_str (15) * 2) = 45
+      assert state.stats.damage == 45
+    end
+
+    test "base stats never change" do
+      player_id = unique_player_id()
+      start_supervised({PlayerSession, player_id: player_id, username: "test_user"})
+
+      state = PlayerSession.get_state(player_id)
+      assert state.stats.base_str == 10
+      assert state.stats.base_def == 5
+      assert state.stats.base_dex == 10
+      assert state.stats.base_int == 10
     end
   end
 end

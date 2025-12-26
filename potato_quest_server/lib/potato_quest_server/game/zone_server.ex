@@ -100,6 +100,12 @@ defmodule PotatoQuestServer.Game.ZoneServer do
   end
 
   @impl true
+  def handle_call(:get_players, _from, state) do
+    {:reply, format_players(state.players), state}
+  end
+
+
+  @impl true
   def handle_call({:attack, player_id, enemy_id}, _from, state) do
     case find_enemy(state.enemies, enemy_id) do
       nil ->
@@ -157,11 +163,6 @@ defmodule PotatoQuestServer.Game.ZoneServer do
   def handle_info(:world_tick, state) do
     tick_ref = schedule_world_tick()
     {:noreply, %{state | tick_ref: tick_ref }}
-  end
-
-  @impl true
-  def handle_call(:get_players, _from, state) do
-    {:reply, format_players(state.players), state}
   end
 
   @impl true

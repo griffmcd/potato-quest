@@ -573,7 +573,7 @@ defmodule PotatoQuestServer.Game.ZoneServerTest do
       {:ok, pid} = start_supervised({ZoneServer, zone_id: zone_id})
 
       initial_state = get_genserver_state(pid)
-      initial_ref = initial_state.tick_ref
+      _initial_ref = initial_state.tick_ref
 
       # Wait for tick to occur
       Process.sleep(250)
