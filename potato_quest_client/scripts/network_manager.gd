@@ -224,6 +224,8 @@ func _handle_message(message_text: String) -> void:
 			_handle_item_picked_up(payload)
 		"inventory:updated":
 			_handle_inventory_updated(payload)
+		"error":
+			_handle_error(payload)
 		_:
 			print("Unknown event: ", event)
 
@@ -307,6 +309,11 @@ func _handle_inventory_updated(payload: Dictionary) -> void:
 	print("Inventory updated - Gold: ", gold) 
 	inventory_updated.emit(gold)
 
+
+func _handle_error(payload: Dictionary) -> void:
+	var reason = payload.get("reason", "Unknown error")
+	print("ERROR from server: ", reason) 
+	push_error("Server error: " + reason)
 
 func _get_next_ref() -> int:
 	_message_ref += 1

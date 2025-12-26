@@ -26,6 +26,15 @@ func _ready() -> void:
 	# Set initial position
 	_last_sent_position = global_position
 
+func _input(event: InputEvent) -> void:
+	if event is InputEventMouseButton and event.pressed and \
+		event.button_index == MOUSE_BUTTON_LEFT:
+			var camera_rig = $CameraRig 
+			if camera_rig.mouse_captured:
+				_perform_raycast() 
+
+
+
 
 func _physics_process(delta: float) -> void:
 	# Get input for movement
@@ -111,7 +120,7 @@ func _rotation_changed() -> bool:
 	var camera_rig = $CameraRig
 	var current_pitch = _get_camera_pitch()
 	var current_yaw = camera_rig.rotation.y 
-	var current_body_rotation = rotation.y 
+	var current_body_rotation = $Body.rotation.y 
 
 	var current_rotation = Vector3(current_pitch, current_yaw, current_body_rotation)
 	# did any component change beyond the threshold 
@@ -133,3 +142,26 @@ func _get_camera_pitch() -> float:
 func _get_current_rotation() -> Vector3:
 	var camera_rig = $CameraRig 
 	return Vector3(_get_camera_pitch(), camera_rig.rotation.y, $Body.rotation.y)
+
+func _perform_raycast() -> void: 
+	var camera_rig = $CameraRig 
+	var camera = camera_rig.first_person_camera if camera_rig.is_first_person \
+			else camera_rig.third_person_camera
+	var from = camera.global_position
+	var to = from + (-camera.global_transform.basis.z * 100.0) # 100 units forward
+	var space_state = get_world_3d().direct_space_state
+	var query = PhysicsRayQueryParameters3D.create(from, to) 
+	query.collide_with_areas = true # enable Area3D detection 
+	query.exclude = [self]
+
+	var result = space_state.intersect_ray(query) 
+	if result: 
+		var collider = result.collider 
+		if collider.name == "Hurtbox" and "enemy_id" in collider.get_parent():
+			var enemy = collider.get_parent() 
+			print("Player attacked enemy: ", enemy.enemy_id)
+			get_node("/root/MainGame")._on_enemy_clicked(enemy.enemy_id)
+		elif collider is Area3D and collider.has_meta("item_id"):
+			var item_id = collider.get_meta("item_id")
+			print("Player picking up item: ", item_id) 
+			get_node("/root/NetworkManager").send_pickup_item(item_id)

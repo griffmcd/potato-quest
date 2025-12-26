@@ -195,6 +195,7 @@ func _spawn_loot_item(loot: Dictionary) -> void:
 
 	# click detection 
 	var area = Area3D.new() 
+	area.set_meta("item_id", item_id)
 	var collision = CollisionShape3D.new() 
 	var shape = SphereShape3D.new() 
 	shape.radius = 0.5 

@@ -137,6 +137,12 @@ defmodule PotatoQuestServerWeb.GameChannel do
         })
         {:noreply, socket}
       {:ok, {:enemy_died, damage, loot_item}} ->
+        broadcast!(socket, "enemy:damaged", %{
+          enemy_id: enemy_id,
+          damage: damage,
+          health: 0,
+          attacker_id: player_id
+        })
         broadcast!(socket, "enemy:died", %{
           enemy_id: enemy_id,
           loot: loot_item

@@ -27,10 +27,14 @@ func update_health_label() -> void:
         health_label.text = "HP: %d/%d" % [current_health, max_health]
 
 func _play_death_animation() -> void:
-    # simple fade by modulating the Body node before removing it
-    var tween = create_tween() 
-    tween.tween_property(body, "modulate:a", 0.0, 0.5)
-    tween.tween_callback(queue_free) 
+    # disable collision 
+    hurtbox.set_deferred("monitoring", false)
+    # scale down animation 
+    var tween = create_tween()
+    tween.set_parallel(true) 
+    tween.tween_property(self, "scale", Vector3.ZERO, 0.3)
+    tween.tween_property(health_label, "modulate:a", 0.0, 0.2)
+    tween.chain().tween_callback(queue_free)
 
 func _on_hurtbox_input_event(_camera, event, _position, _normal, _shape_idx):
     if event is InputEventMouseButton:
