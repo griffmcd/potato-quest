@@ -38,6 +38,10 @@ defmodule PotatoQuestServer.Game.ZoneServer do
     GenServer.call(via_tuple(zone_id), {:pickup_item, player_id, item_id})
   end
 
+  def spawn_player_dropped_item(zone_id, template_id, position) do
+    GenServer.call(via_tuple(zone_id), {:spawn_player_item, template_id, position})
+  end
+
   # Server Callbacks
 
   @impl true
@@ -108,7 +112,7 @@ defmodule PotatoQuestServer.Game.ZoneServer do
         enemies = update_enemy(state.enemies, updated_enemy)
 
         if new_health == 0 do
-          {loot_item, new_counter} = spawn_loot(enemy, state.item_counter)
+          {loot_item, new_counter} = spawn_loot(enemy.position, :gold_coin, state.item_counter, 10)
           new_state = %{state |
             enemies: mark_enemy_dead(enemies, enemy_id),
             items: [loot_item | state.items],
@@ -131,6 +135,17 @@ defmodule PotatoQuestServer.Game.ZoneServer do
         PotatoQuestServer.Game.PlayerSession.add_gold(player_id, item.value)
         {:reply, {:ok, item}, %{state | items: items}}
     end
+  end
+
+  @impl true
+  def handle_call({:spawn_player_item, template_id, position}, _from, state) do
+    # TODO?: Maybe add a lookup for item value here, or carry the value of items with us? Not sure yet
+    {new_item, new_counter} = spawn_loot(position, template_id, state.item_counter, 0)
+    new_state = %{state |
+      items: [new_item | state.items],
+      item_counter: new_counter
+    }
+    {:reply, {:ok, new_item}, new_state}
   end
 
   @impl true
@@ -183,14 +198,14 @@ defmodule PotatoQuestServer.Game.ZoneServer do
     stats.str * 2
   end
 
-  defp spawn_loot(enemy, counter) do
-    item = %{
+  defp spawn_loot(position, template_id, counter, value) do
+    new_item = %{
       id: "item_#{counter}",
-      item_type: :gold_coin,
-      position: enemy.position,
-      value: 10
+      item_type: template_id,
+      position: position,
+      value: value
     }
-    {item, counter + 1}
+    {new_item, counter + 1}
   end
 
   defp find_enemy(enemies, enemy_id) do
