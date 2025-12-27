@@ -33,6 +33,9 @@ signal enemy_damaged(enemy_id: String, damage: int, health: int, attacker_id: St
 signal enemy_died(enemy_id: String, loot: Dictionary)
 signal item_picked_up(item_id: String, player_id: String)
 signal inventory_updated(gold: int)
+signal equipment_updated(equipment: Dictionary, stats: Dictionary)
+signal inventory_changed(inventory: Array, gold: int)
+signal error_received(message: String)
 
 
 func _ready() -> void:
@@ -172,13 +175,49 @@ func send_attack(enemy_id: String) -> void:
 
 func send_pickup_item(item_id: String) -> void:
 	if not _connected or player_id.is_empty():
-		return 
+		return
 	var message = {
 		"topic": GAME_TOPIC,
 		"event": "player:pickup_item",
 		"payload": {"item_id": item_id},
 		"ref": str(_get_next_ref())
-	} 
+	}
+	_send_message(message)
+
+func send_equip_item(instance_id: String) -> void:
+	if not _connected or player_id.is_empty():
+		return
+
+	var message = {
+		"topic": GAME_TOPIC,
+		"event": "player:equip_item",
+		"payload": {"instance_id": instance_id},
+		"ref": str(_get_next_ref())
+	}
+	_send_message(message)
+
+func send_unequip_item(slot: String) -> void:
+	if not _connected or player_id.is_empty():
+		return
+
+	var message = {
+		"topic": GAME_TOPIC,
+		"event": "player:unequip_item",
+		"payload": {"slot": slot},
+		"ref": str(_get_next_ref())
+	}
+	_send_message(message)
+
+func send_drop_item(instance_id: String) -> void:
+	if not _connected or player_id.is_empty():
+		return
+
+	var message = {
+		"topic": GAME_TOPIC,
+		"event": "player:drop_item",
+		"payload": {"instance_id": instance_id},
+		"ref": str(_get_next_ref())
+	}
 	_send_message(message)
 
 ## Send a message through the WebSocket
@@ -224,6 +263,8 @@ func _handle_message(message_text: String) -> void:
 			_handle_item_picked_up(payload)
 		"inventory:updated":
 			_handle_inventory_updated(payload)
+		"equipment:updated":
+			_handle_equipment_updated(payload)
 		"error":
 			_handle_error(payload)
 		_:
@@ -305,15 +346,36 @@ func _handle_item_picked_up(payload: Dictionary) -> void:
 	item_picked_up.emit(item_id, this_player_id) 
 
 func _handle_inventory_updated(payload: Dictionary) -> void:
-	var gold = payload.get("gold", 0)
-	print("Inventory updated - Gold: ", gold) 
-	inventory_updated.emit(gold)
+	var gold = payload.get("gold", -1)
+	var inventory = payload.get("inventory", [])
 
+	print("Inventory updated - Gold: ", gold)
+
+	if gold >= 0:
+		inventory_updated.emit(gold)
+
+	if not inventory.is_empty():
+		inventory_changed.emit(inventory, gold)
+
+func _handle_equipment_updated(payload: Dictionary) -> void:
+	var equipment = payload.get("equipment", {})
+	var stats = payload.get("stats", {})
+	var inventory = payload.get("inventory", [])
+
+	print("Equipment updated - Stats: ", stats.get("damage", 0), " damage")
+	equipment_updated.emit(equipment, stats)
+
+	# Also update inventory if provided
+	if not inventory.is_empty():
+		var gold = -1  # Signal no gold change
+		inventory_changed.emit(inventory, gold)
 
 func _handle_error(payload: Dictionary) -> void:
 	var reason = payload.get("reason", "Unknown error")
-	print("ERROR from server: ", reason) 
-	push_error("Server error: " + reason)
+	var message = payload.get("message", reason)
+	print("ERROR from server: ", message)
+	push_error("Server error: " + message)
+	error_received.emit(message)
 
 func _get_next_ref() -> int:
 	_message_ref += 1

@@ -7,6 +7,16 @@ defmodule PotatoQuestServer.Game.ZoneServer do
 
   require Logger
 
+  @loot_tables %{
+    pig_man: [
+      {30, :item, "bronze_sword"},
+      {20, :item, "wooden_shield"},
+      {15, :item, "leather_tunic"},
+      {10, :item, "iron_band"},
+      {25, :gold, {5, 15}}
+    ]
+  }
+
   # Client API
 
   def start_link(opts) do
@@ -118,13 +128,29 @@ defmodule PotatoQuestServer.Game.ZoneServer do
         enemies = update_enemy(state.enemies, updated_enemy)
 
         if new_health == 0 do
-          {loot_item, new_counter} = spawn_loot(enemy.position, :gold_coin, state.item_counter, 10)
+          # Roll for loot drops
+          loot_drops = loot_roll(enemy.type)
+
+          # Spawn each drop
+          {spawned_items, final_counter} = Enum.reduce(loot_drops, {[], state.item_counter}, fn drop, {items, counter} ->
+            case drop do
+              {:item, template_id} ->
+                {item, new_counter} = spawn_loot(enemy.position, template_id, counter, 0)
+                {[item | items], new_counter}
+
+              {:gold, amount} ->
+                {item, new_counter} = spawn_loot(enemy.position, :gold_coin, counter, amount)
+                {[item | items], new_counter}
+            end
+          end)
+
           new_state = %{state |
             enemies: mark_enemy_dead(enemies, enemy_id),
-            items: [loot_item | state.items],
-            item_counter: new_counter
+            items: spawned_items ++ state.items,
+            item_counter: final_counter
           }
-          {:reply, {:ok, {:enemy_died, damage, loot_item}}, new_state}
+
+          {:reply, {:ok, {:enemy_died, damage, spawned_items}}, new_state}
         else
           {:reply, {:ok, {:enemy_damaged, damage, new_health}},
             %{state | enemies: enemies }}
@@ -135,11 +161,33 @@ defmodule PotatoQuestServer.Game.ZoneServer do
   @impl true
   def handle_call({:pickup_item, player_id, item_id}, _from, state) do
     case find_item(state.items, item_id) do
-      nil -> {:reply, {:error, :item_not_found}, state}
+      nil ->
+        {:reply, {:error, :item_not_found}, state}
+
       item ->
         items = remove_item(state.items, item_id)
-        PotatoQuestServer.Game.PlayerSession.add_gold(player_id, item.value)
-        {:reply, {:ok, item}, %{state | items: items}}
+
+        # Check if it's gold or an equipment item
+        result = case item.item_type do
+          :gold_coin ->
+            PotatoQuestServer.Game.PlayerSession.add_gold(player_id, item.value)
+            {:ok, :gold, item.value}
+
+          template_id when is_binary(template_id) ->
+            # It's an equipment item
+            case PotatoQuestServer.Game.PlayerSession.add_item(player_id, template_id) do
+              {:ok, added_item} -> {:ok, :item, added_item}
+              error -> error
+            end
+        end
+
+        case result do
+          {:ok, _, _} = success ->
+            {:reply, success, %{state | items: items}}
+          error ->
+            # Item not picked up, don't remove from zone
+            {:reply, error, state}
+        end
     end
   end
 
@@ -185,6 +233,23 @@ defmodule PotatoQuestServer.Game.ZoneServer do
     {:via, Registry, {PotatoQuestServer.Game.ZoneRegistry, zone_id}}
   end
 
+  defp loot_roll(enemy_type) do
+    loot_table = @loot_tables[enemy_type] || []
+    Enum.reduce(loot_table, [], fn {chance, type, data}, drops ->
+      if :rand.uniform(100) <= chance do
+        case type do
+          :item -> [{:item, data} | drops]
+          :gold ->
+            {min, max} = data
+            amount = min + :rand.uniform(max - min + 1) - 1
+            [{:gold, amount} | drops]
+        end
+      else
+        drops
+      end
+    end)
+  end
+
   defp format_players(players) do
     Enum.map(players, fn {player_id, player_data} ->
       Map.put(player_data, :player_id, player_id)
@@ -196,7 +261,9 @@ defmodule PotatoQuestServer.Game.ZoneServer do
   end
 
   defp calculate_damage(stats) do
-    stats.str * 2
+    # Use pre-calculated damage from player stats
+    # Formula is already applied in PlayerSession: weapon.damage + (str * 2)
+    stats.damage
   end
 
   defp spawn_loot(position, template_id, counter, value) do

@@ -37,6 +37,8 @@ func _connect_signals() -> void:
 	network.enemy_died.connect(_on_enemy_died)
 	network.item_picked_up.connect(_on_item_picked_up)
 	network.inventory_updated.connect(_on_inventory_updated)
+	network.equipment_updated.connect(_on_equipment_updated)
+	network.inventory_changed.connect(_on_inventory_changed)
 
 	# Request the current lobby state now that we're ready
 	network.request_lobby_state()
@@ -151,6 +153,13 @@ func _on_enemy_damaged(enemy_id: String, damage: int, health: int, attacker_id: 
 func _on_enemy_died(enemy_id: String, loot: Dictionary) -> void:
 	if enemies.has(enemy_id):
 		enemies.erase(enemy_id)
+
+	# loot payload now has "spawned_items" array
+	if loot.has("spawned_items"):
+		for item in loot.get("spawned_items", []):
+			_spawn_loot_item(item)
+	# Fallback for old single-item format (backward compatibility)
+	elif loot.has("id"):
 		_spawn_loot_item(loot) 
 
 
@@ -159,8 +168,14 @@ func _on_item_picked_up(item_id: String, player_id: String) -> void:
 		loot_items[item_id].queue_free() 
 		loot_items.erase(item_id)
 
-func _on_inventory_updated(gold: int) -> void: 
+func _on_inventory_updated(gold: int) -> void:
 	print("MainGame: Gold = ", gold)
+
+func _on_equipment_updated(equipment: Dictionary, stats: Dictionary) -> void:
+	print("MainGame: Equipment updated - Damage: ", stats.get("damage", 0))
+
+func _on_inventory_changed(inventory: Array, gold: int) -> void:
+	print("MainGame: Inventory changed - ", inventory.size(), " items, Gold: ", gold)
 
 func _show_damage_number(position: Vector3, damage: int) -> void:
 	var label = Label3D.new() 
@@ -179,42 +194,61 @@ func _show_damage_number(position: Vector3, damage: int) -> void:
 
 
 func _spawn_loot_item(loot: Dictionary) -> void:
-	var item_id = loot.get("id", "") 
+	var item_id = loot.get("id", "")
+	var item_type = loot.get("item_type", "")
 	var pos = loot.get("position", {"x": 0, "y": 0, "z": 0})
-	var position = Vector3(pos.x, pos.y, pos.z)
+	var pos_vector = Vector3(pos.x, pos.y, pos.z)
+	var value = loot.get("value", 0)
 
-	# gold coin = yellow sphere 
-	var mesh_instance = MeshInstance3D.new() 
-	var mesh = SphereMesh.new() 
-	mesh.radius = 0.3 
-	var material = StandardMaterial3D.new() 
-	material.albedo_color = Color(1, 0.8, 0) 
-	mesh.material = material 
-	mesh_instance.mesh = mesh 
-	mesh_instance.global_position = position 
+	# Determine color and label based on item type
+	var color = Color(1, 0.8, 0)  # Gold for coins
+	var label_text = "Gold +%d" % value
 
-	# click detection 
-	var area = Area3D.new() 
+	if item_type != "gold_coin":
+		# It's an equipment item
+		color = Color(0.5, 0.5, 1.0)  # Blue for equipment
+
+		# Map template_id to display name
+		var item_names = {
+			"bronze_sword": "Bronze Sword",
+			"wooden_shield": "Wooden Shield",
+			"leather_tunic": "Leather Tunic",
+			"iron_band": "Iron Band"
+		}
+		label_text = item_names.get(item_type, item_type)
+
+	# Create visual representation (sphere)
+	var mesh_instance = MeshInstance3D.new()
+	var mesh = SphereMesh.new()
+	mesh.radius = 0.3
+	var material = StandardMaterial3D.new()
+	material.albedo_color = color
+	mesh.material = material
+	mesh_instance.mesh = mesh
+	mesh_instance.global_position = pos_vector
+
+	# Click detection area
+	var area = Area3D.new()
 	area.set_meta("item_id", item_id)
-	var collision = CollisionShape3D.new() 
-	var shape = SphereShape3D.new() 
-	shape.radius = 0.5 
-	collision.shape = shape 
+	var collision = CollisionShape3D.new()
+	var shape = SphereShape3D.new()
+	shape.radius = 0.5
+	collision.shape = shape
 	area.add_child(collision)
-	mesh_instance.add_child(area) 
+	mesh_instance.add_child(area)
 
 	area.input_event.connect(func(_camera, event, _pos, _normal, _shape_idx):
 		if event is InputEventMouseButton and event.pressed and event.button_index == MOUSE_BUTTON_LEFT:
-			network.send_pickup_item(item_id) 
+			network.send_pickup_item(item_id)
 	)
 
-	# Label 
-	var label = Label3D.new() 
-	label.text = "Gold +%d" % loot.get("value", 0)
-	label.pixel_size = 0.01 
+	# Label showing item name/value
+	var label = Label3D.new()
+	label.text = label_text
+	label.pixel_size = 0.01
 	label.billboard = BaseMaterial3D.BILLBOARD_ENABLED
 	label.position = Vector3(0, 1, 0)
-	mesh_instance.add_child(label) 
+	mesh_instance.add_child(label)
 
 	add_child(mesh_instance)
 	loot_items[item_id] = mesh_instance 

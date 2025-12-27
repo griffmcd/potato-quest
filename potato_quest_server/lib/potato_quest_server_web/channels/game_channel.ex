@@ -140,7 +140,7 @@ defmodule PotatoQuestServerWeb.GameChannel do
           attacker_id: player_id
         })
         {:noreply, socket}
-      {:ok, {:enemy_died, damage, loot_item}} ->
+      {:ok, {:enemy_died, damage, spawned_items}} ->
         broadcast!(socket, "enemy:damaged", %{
           enemy_id: enemy_id,
           damage: damage,
@@ -149,7 +149,7 @@ defmodule PotatoQuestServerWeb.GameChannel do
         })
         broadcast!(socket, "enemy:died", %{
           enemy_id: enemy_id,
-          loot: loot_item
+          spawned_items: spawned_items
         })
         {:noreply, socket}
       {:error, reason} ->
@@ -164,16 +164,103 @@ defmodule PotatoQuestServerWeb.GameChannel do
     zone_id = "spawn_town"
 
     case PotatoQuestServer.Game.ZoneServer.handle_pickup(zone_id, player_id, item_id) do
-      {:ok, _item} ->
-        broadcast!(socket, "item:picked_up", %{
-          item_id: item_id,
-          player_id: player_id
-        })
+      {:ok, :gold, _amount} ->
         player_state = PotatoQuestServer.Game.PlayerSession.get_state(player_id)
-        push(socket, "inventory:updated", %{gold: player_state.gold})
+
+        push(socket, "inventory:updated", %{
+          gold: player_state.gold
+        })
+
+        broadcast!(socket, "item:picked_up", %{
+          player_id: player_id,
+          item_id: item_id
+        })
+
         {:noreply, socket}
+
+      {:ok, :item, _item_instance} ->
+        player_state = PotatoQuestServer.Game.PlayerSession.get_state(player_id)
+
+        push(socket, "inventory:updated", %{
+          inventory: player_state.inventory,
+          gold: player_state.gold
+        })
+
+        broadcast!(socket, "item:picked_up", %{
+          player_id: player_id,
+          item_id: item_id
+        })
+
+        {:noreply, socket}
+
       {:error, reason} ->
         push(socket, "error", %{reason: to_string(reason)})
+        {:noreply, socket}
+    end
+  end
+
+  @impl true
+  def handle_in("player:equip_item", %{"instance_id" => instance_id}, socket) do
+    player_id = socket.assigns.player_id
+
+    case PotatoQuestServer.Game.PlayerSession.equip_item(player_id, instance_id) do
+      {:ok, equipment, stats} ->
+        player_state = PotatoQuestServer.Game.PlayerSession.get_state(player_id)
+
+        push(socket, "equipment:updated", %{
+          equipment: equipment,
+          inventory: player_state.inventory,
+          stats: stats
+        })
+
+        {:noreply, socket}
+
+      {:error, reason} ->
+        push(socket, "error", %{message: "Failed to equip: #{reason}"})
+        {:noreply, socket}
+    end
+  end
+
+  @impl true
+  def handle_in("player:unequip_item", %{"slot" => slot_name}, socket) do
+    player_id = socket.assigns.player_id
+    slot = String.to_existing_atom(slot_name)
+
+    case PotatoQuestServer.Game.PlayerSession.unequip_item(player_id, slot) do
+      {:ok, equipment, stats} ->
+        player_state = PotatoQuestServer.Game.PlayerSession.get_state(player_id)
+
+        push(socket, "equipment:updated", %{
+          equipment: equipment,
+          inventory: player_state.inventory,
+          stats: stats
+        })
+
+        {:noreply, socket}
+
+      {:error, reason} ->
+        push(socket, "error", %{message: "Failed to unequip: #{reason}"})
+        {:noreply, socket}
+    end
+  end
+
+  @impl true
+  def handle_in("player:drop_item", %{"instance_id" => instance_id}, socket) do
+    player_id = socket.assigns.player_id
+
+    case PotatoQuestServer.Game.PlayerSession.drop_item(player_id, instance_id) do
+      {:ok, _dropped_item} ->
+        player_state = PotatoQuestServer.Game.PlayerSession.get_state(player_id)
+
+        push(socket, "inventory:updated", %{
+          inventory: player_state.inventory,
+          gold: player_state.gold
+        })
+
+        {:noreply, socket}
+
+      {:error, reason} ->
+        push(socket, "error", %{message: "Failed to drop: #{reason}"})
         {:noreply, socket}
     end
   end

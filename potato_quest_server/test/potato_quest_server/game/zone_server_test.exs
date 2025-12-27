@@ -267,18 +267,21 @@ defmodule PotatoQuestServer.Game.ZoneServerTest do
       assert is_integer(new_health)
     end
 
-    test "damage calculation uses player stats.str * 2", %{
+    test "damage calculation uses player stats.damage (weapon + str)", %{
       zone_id: zone_id,
       player_id: player_id,
       enemy: enemy
     } do
       player_state = PlayerSession.get_state(player_id)
-      expected_damage = player_state.stats.str * 2
+      # Damage should equal pre-calculated stats.damage from PlayerSession
+      expected_damage = player_state.stats.damage
 
       {:ok, {:enemy_damaged, damage, _new_health}} =
         ZoneServer.handle_attack(zone_id, player_id, enemy.id)
 
       assert damage == expected_damage
+      # Verify it's weapon.damage (15) + (str (15) * 2) = 45
+      assert damage == 45
     end
 
     test "attacking non-existent enemy returns {:error, :enemy_not_found}", %{
@@ -343,9 +346,9 @@ defmodule PotatoQuestServer.Game.ZoneServerTest do
 
       # Second attack should kill it (50 health, 30 damage per hit)
       result = ZoneServer.handle_attack(zone_id, player_id, enemy.id)
-      assert {:ok, {:enemy_died, damage, loot_item}} = result
+      assert {:ok, {:enemy_died, damage, spawned_items}} = result
       assert is_integer(damage)
-      assert is_map(loot_item)
+      assert is_list(spawned_items)
     end
 
     test "dead enemy is marked with state: :dead", %{
@@ -363,20 +366,25 @@ defmodule PotatoQuestServer.Game.ZoneServerTest do
       assert dead_enemy.state == :dead
     end
 
-    test "dead enemy spawns gold_coin loot at enemy position", %{
+    test "dead enemy spawns loot items at enemy position", %{
       zone_id: zone_id,
       player_id: player_id,
       enemy: enemy
     } do
       # Kill the enemy
       ZoneServer.handle_attack(zone_id, player_id, enemy.id)
-      {:ok, {:enemy_died, _damage, loot_item}} =
+      {:ok, {:enemy_died, _damage, spawned_items}} =
         ZoneServer.handle_attack(zone_id, player_id, enemy.id)
 
-      assert loot_item.item_type == :gold_coin
-      assert loot_item.position.x == enemy.position.x
-      assert loot_item.position.y == enemy.position.y
-      assert loot_item.position.z == enemy.position.z
+      # Should return a list of items (probabilistic, could be empty)
+      assert is_list(spawned_items)
+
+      # All items should be at enemy position
+      Enum.each(spawned_items, fn item ->
+        assert item.position.x == enemy.position.x
+        assert item.position.y == enemy.position.y
+        assert item.position.z == enemy.position.z
+      end)
     end
 
     test "loot item has correct structure (id, item_type, position, value)", %{
@@ -386,17 +394,19 @@ defmodule PotatoQuestServer.Game.ZoneServerTest do
     } do
       # Kill the enemy
       ZoneServer.handle_attack(zone_id, player_id, enemy.id)
-      {:ok, {:enemy_died, _damage, loot_item}} =
+      {:ok, {:enemy_died, _damage, spawned_items}} =
         ZoneServer.handle_attack(zone_id, player_id, enemy.id)
 
-      assert Map.has_key?(loot_item, :id)
-      assert Map.has_key?(loot_item, :item_type)
-      assert Map.has_key?(loot_item, :position)
-      assert Map.has_key?(loot_item, :value)
-      assert loot_item.value == 10
+      # Each item should have the correct structure
+      Enum.each(spawned_items, fn item ->
+        assert Map.has_key?(item, :id)
+        assert Map.has_key?(item, :item_type)
+        assert Map.has_key?(item, :position)
+        assert Map.has_key?(item, :value)
+      end)
     end
 
-    test "item_counter increments after loot spawn", %{
+    test "item_counter increments for each loot item spawned", %{
       zone_id: zone_id,
       player_id: player_id,
       enemy: enemy
@@ -407,10 +417,12 @@ defmodule PotatoQuestServer.Game.ZoneServerTest do
 
       # Kill the enemy
       ZoneServer.handle_attack(zone_id, player_id, enemy.id)
-      ZoneServer.handle_attack(zone_id, player_id, enemy.id)
+      {:ok, {:enemy_died, _damage, spawned_items}} =
+        ZoneServer.handle_attack(zone_id, player_id, enemy.id)
 
       final_state = get_genserver_state(pid)
-      assert final_state.item_counter == initial_counter + 1
+      # Counter should increment by number of items spawned
+      assert final_state.item_counter == initial_counter + length(spawned_items)
     end
   end
 
@@ -425,8 +437,18 @@ defmodule PotatoQuestServer.Game.ZoneServerTest do
       # Kill enemy to spawn loot
       [enemy] = ZoneServer.get_enemies(zone_id)
       ZoneServer.handle_attack(zone_id, player_id, enemy.id)
-      {:ok, {:enemy_died, _damage, loot_item}} =
+      {:ok, {:enemy_died, _damage, spawned_items}} =
         ZoneServer.handle_attack(zone_id, player_id, enemy.id)
+
+      # Get first item (or spawn a known item if list is empty due to RNG)
+      loot_item = case spawned_items do
+        [first | _] -> first
+        [] ->
+          # If no items dropped, spawn a test item
+          pos = %{x: 0.0, y: 0.0, z: 0.0}
+          {:ok, item} = ZoneServer.spawn_player_dropped_item(zone_id, "bronze_sword", pos)
+          item
+      end
 
       %{zone_id: zone_id, player_id: player_id, loot_item: loot_item}
     end
@@ -459,14 +481,21 @@ defmodule PotatoQuestServer.Game.ZoneServerTest do
       assert final_gold == initial_gold + loot_item.value
     end
 
-    test "returns {:ok, item} with item details", %{
+    test "returns {:ok, :gold, value} for gold or {:ok, :item, item} for equipment", %{
       zone_id: zone_id,
       player_id: player_id,
       loot_item: loot_item
     } do
       result = ZoneServer.handle_pickup(zone_id, player_id, loot_item.id)
-      assert {:ok, item} = result
-      assert item.id == loot_item.id
+
+      # Could be either gold or equipment based on loot drops
+      case result do
+        {:ok, :gold, value} ->
+          assert is_integer(value)
+        {:ok, :item, item_instance} ->
+          assert Map.has_key?(item_instance, :instance_id)
+          assert Map.has_key?(item_instance, :template_id)
+      end
     end
 
     test "returns {:error, :item_not_found} for non-existent item", %{
@@ -482,12 +511,13 @@ defmodule PotatoQuestServer.Game.ZoneServerTest do
       player_id: player_id,
       loot_item: loot_item
     } do
-      # First pickup succeeds
-      {:ok, _} = ZoneServer.handle_pickup(zone_id, player_id, loot_item.id)
+      # First pickup succeeds (either gold or item)
+      result = ZoneServer.handle_pickup(zone_id, player_id, loot_item.id)
+      assert match?({:ok, _, _}, result)
 
       # Second pickup fails
-      result = ZoneServer.handle_pickup(zone_id, player_id, loot_item.id)
-      assert {:error, :item_not_found} = result
+      result2 = ZoneServer.handle_pickup(zone_id, player_id, loot_item.id)
+      assert {:error, :item_not_found} = result2
     end
   end
 
@@ -619,9 +649,9 @@ defmodule PotatoQuestServer.Game.ZoneServerTest do
       {:ok, item1} = ZoneServer.spawn_player_dropped_item(zone_id, "bronze_sword", pos1)
       {:ok, item2} = ZoneServer.spawn_player_dropped_item(zone_id, "leather_tunic", pos2)
 
-      # Player picks up both items
-      {:ok, _} = ZoneServer.handle_pickup(zone_id, player_id, item1.id)
-      {:ok, _} = ZoneServer.handle_pickup(zone_id, player_id, item2.id)
+      # Player picks up both items (returns {:ok, :item, item_instance})
+      {:ok, _, _} = ZoneServer.handle_pickup(zone_id, player_id, item1.id)
+      {:ok, _, _} = ZoneServer.handle_pickup(zone_id, player_id, item2.id)
 
       # Both pickups should succeed
       pid = GenServer.whereis(via_tuple(zone_id))
