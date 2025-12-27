@@ -141,6 +141,7 @@ defmodule PotatoQuestServerWeb.GameChannel do
         })
         {:noreply, socket}
       {:ok, {:enemy_died, damage, spawned_items}} ->
+        Logger.info("Broadcasting enemy:died with spawned_items: #{inspect(spawned_items)}")
         broadcast!(socket, "enemy:damaged", %{
           enemy_id: enemy_id,
           damage: damage,

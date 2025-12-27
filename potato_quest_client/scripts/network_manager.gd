@@ -335,9 +335,13 @@ func _handle_enemy_damaged(payload: Dictionary) -> void:
 
 func _handle_enemy_died(payload: Dictionary) -> void:
 	var enemy_id = payload.get("enemy_id", "")
-	var loot = payload.get("loot", {})
+	var spawned_items = payload.get("spawned_items", [])
 
-	enemy_died.emit(enemy_id, loot)
+	print("Enemy died: ", enemy_id, " with ", spawned_items.size(), " items")
+
+	# Emit with spawned_items wrapped in a dictionary for compatibility
+	var loot_payload = {"spawned_items": spawned_items}
+	enemy_died.emit(enemy_id, loot_payload)
 
 func _handle_item_picked_up(payload: Dictionary) -> void:
 	var item_id = payload.get("item_id", "")

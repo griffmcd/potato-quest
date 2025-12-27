@@ -12,8 +12,8 @@ defmodule PotatoQuestServer.Game.ZoneServer do
       {30, :item, "bronze_sword"},
       {20, :item, "wooden_shield"},
       {15, :item, "leather_tunic"},
-      {10, :item, "iron_band"},
-      {25, :gold, {5, 15}}
+      {100, :item, "iron_band"},
+      {100, :gold, {5, 15}}
     ]
   }
 
@@ -130,6 +130,7 @@ defmodule PotatoQuestServer.Game.ZoneServer do
         if new_health == 0 do
           # Roll for loot drops
           loot_drops = loot_roll(enemy.type)
+          Logger.info("Enemy #{enemy_id} died! Loot drops: #{inspect(loot_drops)}")
 
           # Spawn each drop
           {spawned_items, final_counter} = Enum.reduce(loot_drops, {[], state.item_counter}, fn drop, {items, counter} ->
@@ -235,8 +236,11 @@ defmodule PotatoQuestServer.Game.ZoneServer do
 
   defp loot_roll(enemy_type) do
     loot_table = @loot_tables[enemy_type] || []
+    Logger.info("Rolling loot for #{enemy_type}, table: #{inspect(loot_table)}")
     Enum.reduce(loot_table, [], fn {chance, type, data}, drops ->
-      if :rand.uniform(100) <= chance do
+      roll = :rand.uniform(100)
+      Logger.info("  Loot roll: #{roll} vs chance #{chance} for #{type}/#{inspect(data)}")
+      if roll <= chance do
         case type do
           :item -> [{:item, data} | drops]
           :gold ->
