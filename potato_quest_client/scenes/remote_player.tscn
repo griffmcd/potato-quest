@@ -1,11 +1,15 @@
-[gd_scene load_steps=4 format=3 uid="uid://b1jgetthpr4ox"]
+[gd_scene load_steps=6 format=3 uid="uid://b1jgetthpr4ox"]
 
 [ext_resource type="Script" uid="uid://nuvfmbsuxw1b" path="res://scripts/remote_player.gd" id="1_bj1mr"]
-[ext_resource type="PackedScene" uid="uid://bt0dkryn3ww4v" path="res://assets/characters/Characters_psx/Models/Male/Character_32.fbx" id="2_n407u"]
+[ext_resource type="PackedScene" uid="uid://buyr5txuw76lw" path="res://assets/characters/Characters_psx/Models/Male/old_man_1/old_man_1.glb" id="2_bbtsb"]
+[ext_resource type="Texture2D" uid="uid://gf3b4ax7duj" path="res://assets/characters/Characters_psx/Textures/Character_32.png" id="3_qalt5"]
 
 [sub_resource type="CapsuleShape3D" id="CapsuleShape3D_qalt5"]
 radius = 0.375
 height = 2.1
+
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_5dc0f"]
+albedo_texture = ExtResource("3_qalt5")
 
 [node name="RemotePlayer" type="CharacterBody3D"]
 script = ExtResource("1_bj1mr")
@@ -14,35 +18,10 @@ script = ExtResource("1_bj1mr")
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.059, 0)
 shape = SubResource("CapsuleShape3D_qalt5")
 
-[node name="Body" parent="." instance=ExtResource("2_n407u")]
-transform = Transform3D(0, 0, -0.5, 0, 0.5, 0, -0.5, 0, 0, 0, 0, 0)
+[node name="Body" parent="." instance=ExtResource("2_bbtsb")]
+transform = Transform3D(0.5, 0, 0, 0, 0.5, 0, 0, 0, 0.5, 0, 0, 0)
 
-[node name="Skeleton3D" parent="Body" index="0"]
-bones/1/position = Vector3(-0.0265926, 0.219508, -1.34306e-17)
-bones/2/position = Vector3(-5.55112e-17, 0.257966, 0)
-bones/2/rotation = Quaternion(-1.26358e-20, -9.06043e-28, 7.17042e-08, 1)
-bones/3/position = Vector3(-2.77556e-17, 0.294818, 0)
-bones/3/rotation = Quaternion(-1.54074e-32, 1.68672e-33, 0, 1)
-bones/5/position = Vector3(0.0490936, 0.135466, 2.48011e-17)
-bones/8/position = Vector3(-1.11022e-16, 0.277121, -4.44089e-16)
-bones/9/position = Vector3(5.55112e-17, 0.604382, 0)
-bones/10/position = Vector3(-8.32667e-17, 0.667199, -2.22045e-16)
-bones/11/position = Vector3(5.55112e-17, 0.121345, 2.22045e-16)
-bones/12/position = Vector3(2.77556e-17, 0.0928867, 2.22045e-16)
-bones/12/rotation = Quaternion(-7.70372e-34, -1.04083e-17, -9.62965e-35, 1)
-bones/13/rotation = Quaternion(1.73472e-18, -1.04083e-17, 6.50521e-19, 1)
-bones/16/position = Vector3(-1.11022e-16, 0.277121, 0)
-bones/17/position = Vector3(1.11022e-16, 0.604299, 2.22045e-16)
-bones/18/position = Vector3(-3.46945e-18, 0.666748, 0)
-bones/19/position = Vector3(5.55112e-17, 0.103313, 2.22045e-16)
-bones/20/position = Vector3(0, 0.0971045, 2.77556e-16)
-bones/20/rotation = Quaternion(-6.61363e-18, 1.54074e-33, -1.73472e-18, 1)
-bones/21/rotation = Quaternion(-1.35092e-16, 3.46945e-18, -1.04083e-17, 1)
-bones/24/position = Vector3(-1.38778e-17, 1.09446, 0)
-bones/25/position = Vector3(-2.77556e-17, 1.07846, 0)
-bones/26/position = Vector3(0, 0.37852, -4.16334e-17)
-bones/29/position = Vector3(-1.38778e-17, 1.09437, 5.55112e-17)
-bones/30/position = Vector3(1.38778e-16, 1.07841, 0)
-bones/31/position = Vector3(5.55112e-17, 0.377741, 2.77556e-17)
+[node name="Character_32" parent="Body/Armature/Skeleton3D" index="0"]
+surface_material_override/0 = SubResource("StandardMaterial3D_5dc0f")
 
 [editable path="Body"]

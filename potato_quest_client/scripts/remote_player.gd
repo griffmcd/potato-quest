@@ -12,6 +12,8 @@ var target_position: Vector3 = Vector3.ZERO
 var target_body_rotation: float = 0.0  # Body Y rotation (which way character faces)
 var username_label: Label3D = null
 
+@onready var animation_player: AnimationPlayer = $Body/AnimationPlayer
+
 
 func _ready() -> void:
 	# Create a username label above the player
@@ -36,6 +38,8 @@ func _physics_process(delta: float) -> void:
 	var body = $Body
 	body.rotation.y = lerp_angle(body.rotation.y, target_body_rotation, interpolation_speed * delta)
 
+	_update_animation_state()
+
 
 ## Update the target position for this remote player
 func update_position(new_position: Vector3) -> void:
@@ -54,3 +58,15 @@ func set_username(new_username: String) -> void:
 	player_username = new_username
 	if username_label:
 		username_label.text = new_username
+
+func _update_animation_state() -> void:
+	if not animation_player:
+		return 
+	var distance_to_target = global_position.distance_to(target_position)
+	var is_moving = distance_to_target > 0.1 
+	if is_moving:
+		if animation_player.current_animation != "walk":
+			animation_player.play("walk")
+	else:
+		if animation_player.current_animation != "idle":
+			animation_player.play("idle")
