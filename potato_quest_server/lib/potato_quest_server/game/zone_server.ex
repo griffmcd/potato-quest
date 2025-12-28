@@ -12,8 +12,8 @@ defmodule PotatoQuestServer.Game.ZoneServer do
       {30, :item, "bronze_sword"},
       {20, :item, "wooden_shield"},
       {15, :item, "leather_tunic"},
-      {100, :item, "iron_band"},
-      {100, :gold, {5, 15}}
+      {10, :item, "iron_band"},
+      {20, :gold, {5, 15}}
     ]
   }
 

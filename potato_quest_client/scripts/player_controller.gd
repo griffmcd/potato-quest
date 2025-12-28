@@ -20,7 +20,7 @@ var _rotation_threshold: float = 0.05 # ~3 degrees in radians
 
 # Reference to NetworkManager (autoload)
 @onready var network = get_node("/root/NetworkManager")
-
+@onready var animation_player: AnimationPlayer = $Body/AnimationPlayer
 
 func _ready() -> void:
 	# Set initial position
@@ -77,10 +77,9 @@ func _physics_process(delta: float) -> void:
 	else:
 		velocity.y = 0.0
 
-	# Move the character
+	# Move the character, change animation, and send updated position
 	move_and_slide()
-
-	# Send position updates to server
+	_update_animation_state()
 	_update_position_sending(delta)
 
 	# track rotation changes
@@ -165,3 +164,15 @@ func _perform_raycast() -> void:
 			var item_id = collider.get_meta("item_id")
 			print("Player picking up item: ", item_id) 
 			get_node("/root/NetworkManager").send_pickup_item(item_id)
+
+func _update_animation_state() -> void:
+	if not animation_player:
+		return 
+	
+	var is_moving = velocity.length() > 0.1 
+	if is_moving:
+		if animation_player.current_animation != "walk":
+			animation_player.play("walk")
+	else:
+		if animation_player.current_animation != "idle":
+			animation_player.play("idle")
