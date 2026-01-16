@@ -12,7 +12,7 @@ var target_position: Vector3 = Vector3.ZERO
 var target_body_rotation: float = 0.0  # Body Y rotation (which way character faces)
 var username_label: Label3D = null
 
-@onready var animation_player: AnimationPlayer = $Body/AnimationPlayer
+@onready var animation_player: AnimationPlayer = $CharacterVisual/Body/AnimationPlayer
 
 
 func _ready() -> void:
@@ -35,7 +35,7 @@ func _physics_process(delta: float) -> void:
 
 	# Smoothly interpolate body rotation
 	# Apply model-specific forward offset to compensate for different mesh orientations
-	var body = $Body
+	var body = $CharacterVisual/Body
 	body.rotation.y = lerp_angle(body.rotation.y, target_body_rotation, interpolation_speed * delta)
 
 	_update_animation_state()
@@ -61,12 +61,12 @@ func set_username(new_username: String) -> void:
 
 func _update_animation_state() -> void:
 	if not animation_player:
-		return 
+		return
 	var distance_to_target = global_position.distance_to(target_position)
-	var is_moving = distance_to_target > 0.1 
+	var is_moving = distance_to_target > 0.1
 	if is_moving:
-		if animation_player.current_animation != "walk":
-			animation_player.play("walk")
+		if animation_player.current_animation != "Walk":
+			animation_player.play("Walk")
 	else:
-		if animation_player.current_animation != "idle":
-			animation_player.play("idle")
+		if animation_player.current_animation != "Idle":
+			animation_player.play("Idle")

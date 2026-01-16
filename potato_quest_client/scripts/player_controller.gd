@@ -20,7 +20,7 @@ var _rotation_threshold: float = 0.05 # ~3 degrees in radians
 
 # Reference to NetworkManager (autoload)
 @onready var network = get_node("/root/NetworkManager")
-@onready var animation_player: AnimationPlayer = $Body/AnimationPlayer
+@onready var animation_player: AnimationPlayer = $CharacterVisual/Body/AnimationPlayer
 
 func _ready() -> void:
 	# Set initial position
@@ -42,7 +42,7 @@ func _physics_process(delta: float) -> void:
 
 	# Get camera rig reference for camera-relative movement
 	var camera_rig = $CameraRig
-	var body = $Body
+	var body = $CharacterVisual/Body
 
 	# Body always faces camera direction (both first and third person)
 	# Apply model-specific forward offset to compensate for different mesh orientations
@@ -86,7 +86,7 @@ func _physics_process(delta: float) -> void:
 	if _rotation_changed():
 		var current_pitch = _get_camera_pitch()
 		var current_yaw = camera_rig.rotation.y
-		var current_body_rotation = $Body.rotation.y
+		var current_body_rotation = $CharacterVisual/Body.rotation.y
 
 		_last_sent_rotation = Vector3(current_pitch, current_yaw, current_body_rotation)
 		# Send rotation update to server immediately
@@ -119,7 +119,7 @@ func _rotation_changed() -> bool:
 	var camera_rig = $CameraRig
 	var current_pitch = _get_camera_pitch()
 	var current_yaw = camera_rig.rotation.y 
-	var current_body_rotation = $Body.rotation.y 
+	var current_body_rotation = $CharacterVisual/Body.rotation.y 
 
 	var current_rotation = Vector3(current_pitch, current_yaw, current_body_rotation)
 	# did any component change beyond the threshold 
@@ -140,7 +140,7 @@ func _get_camera_pitch() -> float:
 
 func _get_current_rotation() -> Vector3:
 	var camera_rig = $CameraRig 
-	return Vector3(_get_camera_pitch(), camera_rig.rotation.y, $Body.rotation.y)
+	return Vector3(_get_camera_pitch(), camera_rig.rotation.y, $CharacterVisual/Body.rotation.y)
 
 func _perform_raycast() -> void: 
 	var camera_rig = $CameraRig 
@@ -167,12 +167,10 @@ func _perform_raycast() -> void:
 
 func _update_animation_state() -> void:
 	if not animation_player:
-		return 
-	
-	var is_moving = velocity.length() > 0.1 
-	if is_moving:
-		if animation_player.current_animation != "walk":
-			animation_player.play("walk")
-	else:
-		if animation_player.current_animation != "idle":
-			animation_player.play("idle")
+		return
+
+	var is_moving = velocity.length() > 0.1
+	var target_animation = "Walk" if is_moving else "Idle"
+
+	if animation_player.current_animation != target_animation:
+		animation_player.play(target_animation)

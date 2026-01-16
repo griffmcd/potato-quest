@@ -7,14 +7,22 @@ var current_health: int = 50
 var max_health: int = 50 
 
 @onready var health_label: Label3D = $Label3D
-@onready var hurtbox: Area3D = $Hurtbox 
-@onready var body: Node3D = $Body 
+@onready var hurtbox: Area3D = $Hurtbox
+@onready var body: Node3D = $CharacterVisual/Body
+@onready var animation_player: AnimationPlayer = $CharacterVisual/Body/AnimationPlayer
 
-signal enemy_clicked(enemy_id: String) 
+signal enemy_clicked(enemy_id: String)
 
 func _ready() -> void:
-    update_health_label() 
+    update_health_label()
     hurtbox.input_event.connect(_on_hurtbox_input_event)
+
+    # Debug: Check if animation player exists
+    if not animation_player:
+        print("ERROR: Enemy ", enemy_id, " - AnimationPlayer not found!")
+    else:
+        print("Enemy ", enemy_id, " - AnimationPlayer found, playing Idle")
+        _update_animation_state()
 
 func update_health(new_health: int) -> void:
     current_health = new_health 
@@ -41,3 +49,11 @@ func _on_hurtbox_input_event(_camera, event, _position, _normal, _shape_idx):
         if event.pressed and event.button_index == MOUSE_BUTTON_LEFT:
             print("Enemy clicked: ", enemy_id)
             enemy_clicked.emit(enemy_id)
+
+func _update_animation_state() -> void:
+    if not animation_player:
+        return
+    # For now, enemies just play idle animation
+    # In the future, this can be extended for attack/walk animations
+    if animation_player.current_animation != "Idle":
+        animation_player.play("Idle")

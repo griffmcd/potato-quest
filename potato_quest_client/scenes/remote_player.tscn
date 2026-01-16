@@ -1,15 +1,11 @@
-[gd_scene load_steps=6 format=3 uid="uid://b1jgetthpr4ox"]
+[gd_scene load_steps=3 format=3 uid="uid://b1jgetthpr4ox"]
 
 [ext_resource type="Script" uid="uid://nuvfmbsuxw1b" path="res://scripts/remote_player.gd" id="1_bj1mr"]
-[ext_resource type="PackedScene" uid="uid://buyr5txuw76lw" path="res://assets/characters/Characters_psx/Models/Male/old_man_1/old_man_1.glb" id="2_bbtsb"]
-[ext_resource type="Texture2D" uid="uid://gf3b4ax7duj" path="res://assets/characters/Characters_psx/Textures/Character_32.png" id="3_qalt5"]
+[ext_resource type="PackedScene" uid="uid://bhkj5n3m8r7p2" path="res://scenes/character_body.tscn" id="2_character"]
 
 [sub_resource type="CapsuleShape3D" id="CapsuleShape3D_qalt5"]
 radius = 0.375
 height = 2.1
-
-[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_5dc0f"]
-albedo_texture = ExtResource("3_qalt5")
 
 [node name="RemotePlayer" type="CharacterBody3D"]
 script = ExtResource("1_bj1mr")
@@ -18,10 +14,5 @@ script = ExtResource("1_bj1mr")
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.059, 0)
 shape = SubResource("CapsuleShape3D_qalt5")
 
-[node name="Body" parent="." instance=ExtResource("2_bbtsb")]
+[node name="CharacterVisual" parent="." instance=ExtResource("2_character")]
 transform = Transform3D(0.5, 0, 0, 0, 0.5, 0, 0, 0, 0.5, 0, 0, 0)
-
-[node name="Character_32" parent="Body/Armature/Skeleton3D" index="0"]
-surface_material_override/0 = SubResource("StandardMaterial3D_5dc0f")
-
-[editable path="Body"]

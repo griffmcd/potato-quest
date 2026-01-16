@@ -25,7 +25,7 @@ func _ready() -> void:
 	player = get_parent()
 	first_person_camera = get_node("FirstPersonCamera")
 	third_person_camera = get_node("ThirdPersonArm/ThirdPersonCamera")
-	player_body = player.get_node("Body")
+	player_body = player.get_node("CharacterVisual/Body")
 	player_body.visible = false
 
 	# Initialize camera to face forward (-Z direction in Godot)

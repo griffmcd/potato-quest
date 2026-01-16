@@ -1,0 +1,15 @@
+[gd_scene load_steps=3 format=3 uid="uid://bhkj5n3m8r7p2"]
+
+[ext_resource type="PackedScene" uid="uid://dtqep2iga3lbc" path="res://assets/characters/Characters_psx/Models/Male/Character_30.fbx" id="1_body"]
+[ext_resource type="AnimationLibrary" uid="uid://dt270gu1xs3bv" path="res://assets/characters/Animation Library[Standard]/Godot/AnimationLibrary_Godot_Standard.glb" id="2_animations"]
+
+[node name="CharacterBody" type="Node3D"]
+
+[node name="Body" parent="." instance=ExtResource("1_body")]
+
+[node name="AnimationPlayer" parent="Body" index="1"]
+libraries = {
+&"": ExtResource("2_animations")
+}
+
+[editable path="Body"]
