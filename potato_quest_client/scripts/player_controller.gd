@@ -14,9 +14,12 @@ var _last_sent_position: Vector3 = Vector3.ZERO
 var _position_send_timer: float = 0.0
 var _move_threshold: float = 0.5  # Minimum movement to trigger update
 
-# Rotation tracking 
-var _last_sent_rotation: Vector3 = Vector3.ZERO 
-var _rotation_threshold: float = 0.05 # ~3 degrees in radians 
+# Rotation tracking
+var _last_sent_rotation: Vector3 = Vector3.ZERO
+var _rotation_threshold: float = 0.05 # ~3 degrees in radians
+
+# Attack tracking
+var _is_attacking: bool = false 
 
 # Reference to NetworkManager (autoload)
 @onready var network = get_node("/root/NetworkManager")
@@ -26,11 +29,18 @@ func _ready() -> void:
 	# Set initial position
 	_last_sent_position = global_position
 
+	# Connect to animation finished signal
+	if animation_player:
+		animation_player.animation_finished.connect(_on_animation_finished)
+
 func _input(event: InputEvent) -> void:
 	if event is InputEventMouseButton and event.pressed and \
 		event.button_index == MOUSE_BUTTON_LEFT:
-			var camera_rig = $CameraRig 
+			var camera_rig = $CameraRig
 			if camera_rig.mouse_captured:
+				# Always play attack animation
+				_play_attack_animation()
+				# Check if we hit anything
 				_perform_raycast() 
 
 
@@ -153,20 +163,25 @@ func _perform_raycast() -> void:
 	query.collide_with_areas = true # enable Area3D detection 
 	query.exclude = [self]
 
-	var result = space_state.intersect_ray(query) 
-	if result: 
-		var collider = result.collider 
+	var result = space_state.intersect_ray(query)
+	if result:
+		var collider = result.collider
 		if collider.name == "Hurtbox" and "enemy_id" in collider.get_parent():
-			var enemy = collider.get_parent() 
+			var enemy = collider.get_parent()
 			print("Player attacked enemy: ", enemy.enemy_id)
+			# Deal damage to enemy
 			get_node("/root/MainGame")._on_enemy_clicked(enemy.enemy_id)
 		elif collider is Area3D and collider.has_meta("item_id"):
 			var item_id = collider.get_meta("item_id")
-			print("Player picking up item: ", item_id) 
+			print("Player picking up item: ", item_id)
 			get_node("/root/NetworkManager").send_pickup_item(item_id)
 
 func _update_animation_state() -> void:
 	if not animation_player:
+		return
+
+	# Don't interrupt attack animation
+	if _is_attacking:
 		return
 
 	var is_moving = velocity.length() > 0.1
@@ -174,3 +189,16 @@ func _update_animation_state() -> void:
 
 	if animation_player.current_animation != target_animation:
 		animation_player.play(target_animation)
+
+func _play_attack_animation() -> void:
+	if not animation_player:
+		return
+
+	_is_attacking = true
+	animation_player.play("Sword_Attack")
+
+func _on_animation_finished(anim_name: String) -> void:
+	# When attack animation finishes, return to normal state
+	if anim_name == "Sword_Attack":
+		_is_attacking = false
+		_update_animation_state()
