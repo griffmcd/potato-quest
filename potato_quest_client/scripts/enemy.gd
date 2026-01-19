@@ -3,18 +3,17 @@ extends CharacterBody3D
 
 var enemy_id: String = ""
 var enemy_type: String = "pig_man"
-var current_health: int = 50 
-var max_health: int = 50 
+var current_health: int = 50
+var max_health: int = 50
 
-@onready var health_label: Label3D = $Label3D
 @onready var hurtbox: Area3D = $Hurtbox
 @onready var body: Node3D = $CharacterVisual/Body
 @onready var animation_player: AnimationPlayer = $CharacterVisual/Body/AnimationPlayer
 
 signal enemy_clicked(enemy_id: String)
+signal health_changed(enemy_id: String, current_hp: int)
 
 func _ready() -> void:
-    update_health_label()
     hurtbox.input_event.connect(_on_hurtbox_input_event)
 
     # Debug: Check if animation player exists
@@ -25,24 +24,18 @@ func _ready() -> void:
         _update_animation_state()
 
 func update_health(new_health: int) -> void:
-    current_health = new_health 
-    update_health_label() 
+    current_health = new_health
+    health_changed.emit(enemy_id, current_health)
     if current_health <= 0:
-        _play_death_animation() 
-
-func update_health_label() -> void:
-    if health_label:
-        health_label.text = "HP: %d/%d" % [current_health, max_health]
+        _play_death_animation()
 
 func _play_death_animation() -> void:
-    # disable collision 
+    # disable collision
     hurtbox.set_deferred("monitoring", false)
-    # scale down animation 
+    # scale down animation
     var tween = create_tween()
-    tween.set_parallel(true) 
     tween.tween_property(self, "scale", Vector3.ZERO, 0.3)
-    tween.tween_property(health_label, "modulate:a", 0.0, 0.2)
-    tween.chain().tween_callback(queue_free)
+    tween.tween_callback(queue_free)
 
 func _on_hurtbox_input_event(_camera, event, _position, _normal, _shape_idx):
     if event is InputEventMouseButton:

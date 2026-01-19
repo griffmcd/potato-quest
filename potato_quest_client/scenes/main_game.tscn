@@ -1,4 +1,4 @@
-[gd_scene load_steps=13 format=3 uid="uid://b0x3re0tmu8kj"]
+[gd_scene load_steps=14 format=3 uid="uid://b0x3re0tmu8kj"]
 
 [ext_resource type="Script" uid="uid://dkd60fxd8dvhx" path="res://scripts/main_game.gd" id="1_d2op2"]
 [ext_resource type="PackedScene" uid="uid://b1jgetthpr4ox" path="res://scenes/remote_player.tscn" id="2_0rdsr"]
@@ -6,6 +6,7 @@
 [ext_resource type="PackedScene" uid="uid://dmnhkmmb165ae" path="res://scenes/enemy.tscn" id="3_ygxny"]
 [ext_resource type="PackedScene" uid="uid://d0mn0qvsneih5" path="res://scenes/chat_ui.tscn" id="4_0rdsr"]
 [ext_resource type="PackedScene" path="res://scenes/inventory_ui.tscn" id="6_ygxny"]
+[ext_resource type="Script" uid="uid://0o2s3qekyaj2" path="res://scripts/ui_overlay.gd" id="7_ui_overlay"]
 
 [sub_resource type="PlaneMesh" id="PlaneMesh_ygxny"]
 size = Vector2(100, 100)
@@ -47,7 +48,6 @@ shape = SubResource("BoxShape3D_70vka")
 
 [node name="Sun" type="DirectionalLight3D" parent="."]
 transform = Transform3D(0.707107, -0.5, 0.5, 0, 0.707107, 0.707107, -0.707107, -0.5, 0.5, 49.0946, 32.0645, 23.1643)
-shadow_enabled = true
 
 [node name="AmbientEnvironment" type="Node3D" parent="."]
 
@@ -64,3 +64,33 @@ transform = Transform3D(1, 0, 0, 0, 0.707107, 0.707107, 0, -0.707107, 0.707107, 
 [node name="CanvasLayer" type="CanvasLayer" parent="."]
 
 [node name="InventoryUI" parent="CanvasLayer" instance=ExtResource("6_ygxny")]
+
+[node name="UIOverlay" type="CanvasLayer" parent="."]
+script = ExtResource("7_ui_overlay")
+
+[node name="DamageContainer" type="Control" parent="UIOverlay"]
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+
+[node name="HPBarsContainer" type="Control" parent="UIOverlay"]
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+
+[node name="UsernamesContainer" type="Control" parent="UIOverlay"]
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2

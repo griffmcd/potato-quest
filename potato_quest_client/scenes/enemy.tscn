@@ -14,11 +14,6 @@ height = 2.1
 [node name="Enemy" type="CharacterBody3D"]
 script = ExtResource("1_md0e3")
 
-[node name="Label3D" type="Label3D" parent="."]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 2.5, 0)
-billboard = 1
-text = "HP: 50/50"
-
 [node name="Hurtbox" type="Area3D" parent="."]
 
 [node name="CollisionShape3D" type="CollisionShape3D" parent="Hurtbox"]

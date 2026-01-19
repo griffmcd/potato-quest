@@ -6,26 +6,46 @@ extends CharacterBody3D
 
 @export var move_speed: float = 5.0
 @export var rotation_speed: float = 10.0
-@export var position_send_interval: float = 0.1  # Send position every 100ms
 @export var model_forward_offset: float = 0.0  ## Rotation offset to align model's forward with -Z (in radians)
+
+var position_send_interval: float = 0.1  # Loaded from SettingsManager
+var rotation_send_interval: float = 0.1  # Loaded from SettingsManager
 
 # Movement tracking
 var _last_sent_position: Vector3 = Vector3.ZERO
 var _position_send_timer: float = 0.0
-var _move_threshold: float = 0.5  # Minimum movement to trigger update
+var _move_threshold: float = 0.5  # Loaded from SettingsManager
 
 # Rotation tracking
 var _last_sent_rotation: Vector3 = Vector3.ZERO
-var _rotation_threshold: float = 0.05 # ~3 degrees in radians
+var _rotation_send_timer: float = 0.0
+var _rotation_threshold: float = 0.1  # Loaded from SettingsManager
+
+# Animation tracking
+var animation_update_interval: float = 0.05  # Loaded from SettingsManager
+var animation_update_timer: float = 0.0
 
 # Attack tracking
 var _is_attacking: bool = false 
 
 # Reference to NetworkManager (autoload)
 @onready var network = get_node("/root/NetworkManager")
+@onready var settings = get_node("/root/SettingsManager")
 @onready var animation_player: AnimationPlayer = $CharacterVisual/Body/AnimationPlayer
 
 func _ready() -> void:
+	# Load settings
+	position_send_interval = settings.get_position_send_interval()
+	rotation_send_interval = settings.get_rotation_send_interval()
+	animation_update_interval = settings.get_player_animation_interval()
+	_move_threshold = settings.get_move_threshold()
+	_rotation_threshold = settings.get_rotation_threshold()
+
+	# Connect to settings changes
+	settings.network_interval_changed.connect(_on_network_changed)
+	settings.animation_interval_changed.connect(_on_animation_changed)
+	settings.gameplay_changed.connect(_on_gameplay_changed)
+
 	# Set initial position
 	_last_sent_position = global_position
 
@@ -89,18 +109,14 @@ func _physics_process(delta: float) -> void:
 
 	# Move the character, change animation, and send updated position
 	move_and_slide()
-	_update_animation_state()
+
+	animation_update_timer += delta
+	if animation_update_timer >= animation_update_interval:
+		_update_animation_state()
+		animation_update_timer = 0.0
+
 	_update_position_sending(delta)
-
-	# track rotation changes
-	if _rotation_changed():
-		var current_pitch = _get_camera_pitch()
-		var current_yaw = camera_rig.rotation.y
-		var current_body_rotation = $CharacterVisual/Body.rotation.y
-
-		_last_sent_rotation = Vector3(current_pitch, current_yaw, current_body_rotation)
-		# Send rotation update to server immediately
-		network.send_move(global_position, _get_current_rotation())
+	_update_rotation_sending(delta)
 
 
 
@@ -124,6 +140,23 @@ func _update_position_sending(delta: float) -> void:
 				_last_sent_position = global_position
 
 		_position_send_timer = 0.0
+
+
+func _update_rotation_sending(delta: float) -> void:
+	_rotation_send_timer += delta
+
+	# Only send rotation updates at throttled interval
+	if _rotation_send_timer >= rotation_send_interval:
+		if _rotation_changed():
+			var current_pitch = _get_camera_pitch()
+			var current_yaw = $CameraRig.rotation.y
+			var current_body_rotation = $CharacterVisual/Body.rotation.y
+
+			_last_sent_rotation = Vector3(current_pitch, current_yaw, current_body_rotation)
+			# Send rotation update to server
+			network.send_move(global_position, _get_current_rotation())
+
+		_rotation_send_timer = 0.0
 
 func _rotation_changed() -> bool:
 	var camera_rig = $CameraRig
@@ -195,10 +228,31 @@ func _play_attack_animation() -> void:
 		return
 
 	_is_attacking = true
+
+	# Broadcast attack animation to other players
+	network.send_attack_animation()
+
 	animation_player.play("Sword_Attack")
 
 func _on_animation_finished(anim_name: String) -> void:
-	# When attack animation finishes, return to normal state
+	# When attack animatwion finishes, return to normal state
 	if anim_name == "Sword_Attack":
 		_is_attacking = false
 		_update_animation_state()
+
+
+## Handle network interval changes from SettingsManager
+func _on_network_changed(pos_interval: float, rot_interval: float) -> void:
+	position_send_interval = pos_interval
+	rotation_send_interval = rot_interval
+
+
+## Handle animation interval changes from SettingsManager
+func _on_animation_changed(player_interval: float, _remote_player_interval: float) -> void:
+	animation_update_interval = player_interval
+
+
+## Handle gameplay settings changes from SettingsManager
+func _on_gameplay_changed(_interpolation_speed: float, move_threshold: float, rotation_threshold: float) -> void:
+	_move_threshold = move_threshold
+	_rotation_threshold = rotation_threshold

@@ -18,6 +18,7 @@ var loot_items: Dictionary = {} # {item_id: MeshInstance3D node}
 
 # Reference to NetworkManager
 @onready var network = get_node("/root/NetworkManager")
+@onready var ui_overlay = $UIOverlay
 
 
 func _ready() -> void:
@@ -39,6 +40,7 @@ func _connect_signals() -> void:
 	network.inventory_updated.connect(_on_inventory_updated)
 	network.equipment_updated.connect(_on_equipment_updated)
 	network.inventory_changed.connect(_on_inventory_changed)
+	network.player_attacked.connect(_on_player_attacked)
 
 	# Request the current lobby state now that we're ready
 	network.request_lobby_state()
@@ -102,6 +104,18 @@ func _on_player_rotated(p_id: String, rotation_data: Dictionary) -> void:
 		remote_player.update_rotation(rotation_data)
 
 
+func _on_player_attacked(p_id: String) -> void:
+	# Don't play for local player (they already see it)
+	if p_id == network.player_id:
+		return
+
+	if remote_players.has(p_id):
+		var remote_player = remote_players[p_id]
+		remote_player.play_attack_animation()
+	else:
+		print("WARNING: Received attack from unknown player: ", p_id)
+
+
 func _on_player_left(p_id: String, username: String) -> void:
 	print("MainGame: Player left - ", username)
 
@@ -109,6 +123,10 @@ func _on_player_left(p_id: String, username: String) -> void:
 		var remote_player = remote_players[p_id]
 		remote_player.queue_free()
 		remote_players.erase(p_id)
+
+		# Unregister from UI overlay
+		if ui_overlay:
+			ui_overlay.unregister_player(p_id)
 
 func _on_zone_state_received(enemy_data: Array) -> void:
 	print("MainGame: Spawning ", enemy_data.size(), " enemies")
@@ -120,14 +138,14 @@ func _on_zone_state_received(enemy_data: Array) -> void:
 func _spawn_enemy(data: Dictionary) -> void:
 	if not enemy_scene:
 		print("ERROR: enemy_scene not set!")
-		return 
+		return
 
 	var enemy_id = data.get("id", "")
 	if enemies.has(enemy_id):
-		return 
+		return
 
-	var enemy = enemy_scene.instantiate() 
-	enemy.enemy_id = enemy_id 
+	var enemy = enemy_scene.instantiate()
+	enemy.enemy_id = enemy_id
 	enemy.enemy_type = data.get("type", "pig_man")
 	enemy.current_health = data.get("health", 50)
 	enemy.max_health = data.get("max_health", 50)
@@ -135,13 +153,24 @@ func _spawn_enemy(data: Dictionary) -> void:
 	var pos = data.get("position", {"x": 0, "y": 0, "z": 0})
 	enemy.global_position = Vector3(pos.x, pos.y, pos.z)
 	enemy.enemy_clicked.connect(_on_enemy_clicked)
-	add_child(enemy) 
-	enemies[enemy_id] = enemy 
+	enemy.health_changed.connect(_on_enemy_health_changed)
+	add_child(enemy)
+	enemies[enemy_id] = enemy
+
+	# Register with UI overlay for 2D HP bar
+	if ui_overlay:
+		ui_overlay.register_enemy(enemy_id, enemy, enemy.current_health, enemy.max_health)
+
 	print("MainGame: Spawned enemy ", enemy_id, " at ", enemy.global_position)
 
 func _on_enemy_clicked(enemy_id: String) -> void:
-	print("MainGame: Attacking enemy ", enemy_id) 
-	network.send_attack(enemy_id) 
+	print("MainGame: Attacking enemy ", enemy_id)
+	network.send_attack(enemy_id)
+
+
+func _on_enemy_health_changed(enemy_id: String, current_hp: int) -> void:
+	if ui_overlay:
+		ui_overlay.update_enemy_hp(enemy_id, current_hp) 
 
 func _on_enemy_damaged(enemy_id: String, damage: int, health: int, attacker_id: String) -> void: 
 	if enemies.has(enemy_id):
@@ -153,6 +182,10 @@ func _on_enemy_damaged(enemy_id: String, damage: int, health: int, attacker_id: 
 func _on_enemy_died(enemy_id: String, loot: Dictionary) -> void:
 	if enemies.has(enemy_id):
 		enemies.erase(enemy_id)
+
+	# Unregister from UI overlay
+	if ui_overlay:
+		ui_overlay.unregister_enemy(enemy_id)
 
 	# loot payload now has "spawned_items" array
 	if loot.has("spawned_items"):
@@ -178,19 +211,9 @@ func _on_inventory_changed(inventory: Array, gold: int) -> void:
 	print("MainGame: Inventory changed - ", inventory.size(), " items, Gold: ", gold)
 
 func _show_damage_number(position: Vector3, damage: int) -> void:
-	var label = Label3D.new() 
-	label.text = "-%d" % damage 
-	label.font_size = 32 
-	label.modulate = Color(1, 0.3, 0.3)
-	label.billboard = BaseMaterial3D.BILLBOARD_ENABLED 
-	label.global_position = position + Vector3(0, 2, 0)
-
-	add_child(label) 
-	var tween = create_tween() 
-	tween.set_parallel(true)
-	tween.tween_property(label, "global_position", position + Vector3(0, 3, 0), 1.0)
-	tween.tween_property(label, "modulate:a", 0.0, 1.0)
-	tween.chain().tween_callback(label.queue_free)
+	# Use 2D UI overlay instead of expensive Label3D
+	if ui_overlay:
+		ui_overlay.show_damage_number(position, damage)
 
 
 func _spawn_loot_item(loot: Dictionary) -> void:
@@ -242,13 +265,8 @@ func _spawn_loot_item(loot: Dictionary) -> void:
 			network.send_pickup_item(item_id)
 	)
 
-	# Label showing item name/value
-	var label = Label3D.new()
-	label.text = label_text
-	label.pixel_size = 0.01
-	label.billboard = BaseMaterial3D.BILLBOARD_ENABLED
-	label.position = Vector3(0, 1, 0)
-	mesh_instance.add_child(label)
+	# Note: Removed Label3D for performance - color indicates item type
+	# Gold = yellow, Equipment = blue
 
 	add_child(mesh_instance)
 	loot_items[item_id] = mesh_instance 
@@ -266,4 +284,9 @@ func _spawn_remote_player(p_id: String, username: String, player_position: Dicti
 	remote_player.target_position = pos
 	add_child(remote_player)
 	remote_players[p_id] = remote_player
+
+	# Register with UI overlay for 2D username
+	if ui_overlay:
+		ui_overlay.register_player(p_id, remote_player, username)
+
 	print("MainGame: Spawned remote player ", username, " at ", pos)

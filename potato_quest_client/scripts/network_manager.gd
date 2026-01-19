@@ -36,6 +36,7 @@ signal inventory_updated(gold: int)
 signal equipment_updated(equipment: Dictionary, stats: Dictionary)
 signal inventory_changed(inventory: Array, gold: int)
 signal error_received(message: String)
+signal player_attacked(player_id: String)
 
 
 func _ready() -> void:
@@ -163,12 +164,24 @@ func request_zone_state() -> void:
 
 func send_attack(enemy_id: String) -> void:
 	if not _connected or player_id.is_empty():
-		return 
+		return
 
 	var message = {
 		"topic": GAME_TOPIC,
 		"event": "player:attack",
 		"payload": {"enemy_id": enemy_id},
+		"ref": str(_get_next_ref())
+	}
+	_send_message(message)
+
+func send_attack_animation() -> void:
+	if not _connected or player_id.is_empty():
+		return
+
+	var message = {
+		"topic": GAME_TOPIC,
+		"event": "player:attack_animation",
+		"payload": {},
 		"ref": str(_get_next_ref())
 	}
 	_send_message(message)
@@ -249,6 +262,8 @@ func _handle_message(message_text: String) -> void:
 			_handle_player_moved(payload)
 		"player:left":
 			_handle_player_left(payload)
+		"player:attacked":
+			_handle_player_attacked(payload)
 		"lobby:state":
 			_handle_lobby_state(payload)
 		"chat:message":
@@ -380,6 +395,13 @@ func _handle_error(payload: Dictionary) -> void:
 	print("ERROR from server: ", message)
 	push_error("Server error: " + message)
 	error_received.emit(message)
+
+func _handle_player_attacked(payload: Dictionary) -> void:
+	var p_id = payload.get("player_id", "")
+	if p_id.is_empty():
+		print("WARNING: Received player:attacked with no player_id")
+		return
+	player_attacked.emit(p_id)
 
 func _get_next_ref() -> int:
 	_message_ref += 1

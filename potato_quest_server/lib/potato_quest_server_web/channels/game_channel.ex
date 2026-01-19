@@ -160,6 +160,15 @@ defmodule PotatoQuestServerWeb.GameChannel do
   end
 
   @impl true
+  def handle_in("player:attack_animation", _payload, socket) do
+    broadcast!(socket, "player:attacked", %{
+      player_id: socket.assigns.player_id
+    })
+
+    {:noreply, socket}
+  end
+
+  @impl true
   def handle_in("player:pickup_item", %{"item_id" => item_id}, socket) do
     player_id = socket.assigns.player_id
     zone_id = "spawn_town"
