@@ -16,6 +16,10 @@ var remote_players: Dictionary = {}  # {player_id: RemotePlayer node}
 var enemies: Dictionary = {} # {enemy_id: Enemy node}
 var loot_items: Dictionary = {} # {item_id: MeshInstance3D node}
 
+# Zone management
+var current_zone: Node3D = null
+var current_zone_id: String = ""
+
 # Reference to NetworkManager
 @onready var network = get_node("/root/NetworkManager")
 @onready var ui_overlay = $UIOverlay
@@ -41,11 +45,37 @@ func _connect_signals() -> void:
 	network.equipment_updated.connect(_on_equipment_updated)
 	network.inventory_changed.connect(_on_inventory_changed)
 	network.player_attacked.connect(_on_player_attacked)
+	network.enemy_positions_updated.connect(_on_enemy_positions_updated)
+	network.enemy_attacked_player.connect(_on_enemy_attacked_player)
 
 	# Request the current lobby state now that we're ready
 	network.request_lobby_state()
 	network.request_zone_state()
 
+func load_zone(zone_id: String) -> void:
+	print("MainGame: Loading zone ", zone_id)
+
+	# Clear existing zone
+	if current_zone:
+		current_zone.queue_free()
+		current_zone = null
+
+	# Clear existing enemies
+	for enemy in enemies.values():
+		enemy.queue_free()
+	enemies.clear()
+
+	# Load new zone scene
+	var zone_path = "res://scenes/zones/zone_%s.tscn" % zone_id
+	var zone_scene = load(zone_path)
+
+	if zone_scene:
+		current_zone = zone_scene.instantiate()
+		add_child(current_zone)
+		current_zone_id = zone_id
+		print("MainGame: Zone ", zone_id, " loaded successfully")
+	else:
+		push_error("Failed to load zone: " + zone_path)
 
 func _on_joined_lobby(player_id: String) -> void:
 	print("MainGame: Joined lobby as ", player_id)
@@ -129,6 +159,11 @@ func _on_player_left(p_id: String, username: String) -> void:
 			ui_overlay.unregister_player(p_id)
 
 func _on_zone_state_received(enemy_data: Array) -> void:
+	# Load town_square zone if not already loaded
+	# TODO: Server should send zone_id with state
+	if current_zone_id.is_empty():
+		load_zone("town_square")
+
 	print("MainGame: Spawning ", enemy_data.size(), " enemies")
 	for data in enemy_data:
 		print("DEBUG: Enemy data = ", data)
@@ -290,3 +325,22 @@ func _spawn_remote_player(p_id: String, username: String, player_position: Dicti
 		ui_overlay.register_player(p_id, remote_player, username)
 
 	print("MainGame: Spawned remote player ", username, " at ", pos)
+
+func _on_enemy_positions_updated(zone_id: String, enemy_data: Array) -> void:
+	if zone_id != current_zone_id:
+		return  # Ignore updates for other zones
+
+	for data in enemy_data:
+		var enemy_id = data.get("id", "")
+		if enemies.has(enemy_id):
+			var enemy = enemies[enemy_id]
+			var pos = data.get("position", {"x": 0, "y": 0, "z": 0})
+			enemy.update_position(Vector3(pos.x, pos.y, pos.z))
+
+func _on_enemy_attacked_player(enemy_id: String, player_id: String, damage: int) -> void:
+	print("MainGame: Enemy ", enemy_id, " attacked player ", player_id, " for ", damage, " damage")
+
+	# If it's us, show damage feedback
+	if player_id == network.player_id:
+		# TODO: Reduce player health, show damage flash
+		print("MainGame: YOU TOOK ", damage, " DAMAGE!")

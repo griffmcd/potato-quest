@@ -13,17 +13,13 @@ config_version=5
 config/name="potato_quest_client"
 run/main_scene="uid://bjvtkcrfp5fq1"
 config/features=PackedStringArray("4.5", "Mobile")
-config/icon="res://icon.svg"
 run/max_fps=60
+config/icon="res://icon.svg"
 
 [autoload]
 
 NetworkManager="*res://scripts/network_manager.gd"
 SettingsManager="*res://scripts/settings_manager.gd"
-
-[display]
-
-window/vsync/vsync_mode=1
 
 [input]
 

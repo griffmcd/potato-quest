@@ -1,0 +1,65 @@
+[gd_scene load_steps=8 format=3 uid="uid://town_square_001"]
+
+[sub_resource type="PlaneMesh" id="PlaneMesh_ground"]
+size = Vector2(100, 100)
+
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_ground"]
+albedo_color = Color(0.6, 0.6, 0.6, 1)
+
+[sub_resource type="BoxShape3D" id="BoxShape3D_ground"]
+size = Vector3(100, 0.1, 100)
+
+[sub_resource type="ProceduralSkyMaterial" id="ProceduralSkyMaterial_sky"]
+sky_top_color = Color(0.385, 0.454, 0.55, 1)
+sky_horizon_color = Color(0.646, 0.656, 0.67, 1)
+ground_horizon_color = Color(0.646, 0.656, 0.67, 1)
+ground_bottom_color = Color(0.2, 0.169, 0.133, 1)
+
+[sub_resource type="Sky" id="Sky_town"]
+sky_material = SubResource("ProceduralSkyMaterial_sky")
+
+[sub_resource type="Environment" id="Environment_town"]
+background_mode = 2
+sky = SubResource("Sky_town")
+ambient_light_source = 3
+ambient_light_color = Color(1, 1, 1, 1)
+ambient_light_energy = 0.5
+
+[sub_resource type="BoxMesh" id="BoxMesh_fountain"]
+size = Vector3(4, 1, 4)
+
+[node name="TownSquare" type="Node3D"]
+
+[node name="Ground" type="MeshInstance3D" parent="."]
+mesh = SubResource("PlaneMesh_ground")
+surface_material_override/0 = SubResource("StandardMaterial3D_ground")
+
+[node name="GroundCollision" type="StaticBody3D" parent="Ground"]
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="Ground/GroundCollision"]
+shape = SubResource("BoxShape3D_ground")
+
+[node name="Sun" type="DirectionalLight3D" parent="."]
+transform = Transform3D(0.866025, -0.433013, 0.25, 0, 0.5, 0.866025, -0.5, -0.75, 0.433013, 30, 25, 20)
+light_energy = 0.8
+shadow_enabled = false
+
+[node name="WorldEnvironment" type="WorldEnvironment" parent="."]
+environment = SubResource("Environment_town")
+
+[node name="Buildings" type="Node3D" parent="."]
+
+[node name="Fountain" type="MeshInstance3D" parent="Buildings"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.5, 0)
+mesh = SubResource("BoxMesh_fountain")
+
+[node name="SpawnPoints" type="Node3D" parent="."]
+
+[node name="MainGate" type="Marker3D" parent="SpawnPoints"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1, -45)
+
+[node name="Fountain" type="Marker3D" parent="SpawnPoints"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1, 0)
+
+[node name="Market" type="Marker3D" parent="SpawnPoints"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 20, 1, 10)

@@ -20,7 +20,7 @@ defmodule PotatoQuestServer.Application do
       {DynamicSupervisor, strategy: :one_for_one, name: PotatoQuestServer.Game.PlayerSupervisor},
       {DynamicSupervisor, strategy: :one_for_one, name: PotatoQuestServer.Game.ZoneSupervisor},
       # Start the spawn town zone
-      {PotatoQuestServer.Game.ZoneServer, zone_id: "spawn_town"},
+      {PotatoQuestServer.Game.ZoneServer, zone_id: "spawn_town", zone_type: "town_square"},
       # Start to serve requests, typically the last entry
       PotatoQuestServerWeb.Endpoint
     ]

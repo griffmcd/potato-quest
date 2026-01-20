@@ -5,6 +5,9 @@ defmodule PotatoQuestServerWeb.GameChannel do
 
   alias PotatoQuestServerWeb.Presence
 
+  # Intercept presence_diff to handle it properly
+  intercept ["presence_diff"]
+
   @impl true
   def join("game:lobby", %{"username" => username}, socket) do
     Logger.info("Player joining: #{username}")
@@ -46,6 +49,9 @@ defmodule PotatoQuestServerWeb.GameChannel do
       online_at: inspect(System.system_time(:second))
     })
 
+    # Subscribe to PubSub for zone updates (separate topic from channel topic)
+    Phoenix.PubSub.subscribe(PotatoQuestServer.PubSub, "zone:updates")
+
     # Send lobby state to the new player
     players = get_lobby_players(socket)
     push(socket, "lobby:state", %{players: players})
@@ -55,6 +61,28 @@ defmodule PotatoQuestServerWeb.GameChannel do
       player_id: socket.assigns.player_id,
       username: socket.assigns.username,
       position: socket.assigns.position
+    })
+
+    {:noreply, socket}
+  end
+
+  @impl true
+  def handle_info({:enemy_positions_update, zone_id, enemies}, socket) do
+    broadcast!(socket, "enemy:positions_update", %{
+      zone_id: zone_id,
+      enemies: enemies
+    })
+
+    {:noreply, socket}
+  end
+
+  @impl true
+  def handle_info({:enemy_attacked_player, zone_id, event}, socket) do
+    broadcast!(socket, "enemy:attacked_player", %{
+      zone_id: zone_id,
+      enemy_id: event.enemy_id,
+      player_id: event.player_id,
+      damage: event.damage
     })
 
     {:noreply, socket}
@@ -273,6 +301,13 @@ defmodule PotatoQuestServerWeb.GameChannel do
         push(socket, "error", %{message: "Failed to drop: #{reason}"})
         {:noreply, socket}
     end
+  end
+
+  @impl true
+  def handle_out("presence_diff", msg, socket) do
+    # Handle presence_diff messages - just push them to the client
+    push(socket, "presence_diff", msg)
+    {:noreply, socket}
   end
 
   @impl true

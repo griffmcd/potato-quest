@@ -21,7 +21,8 @@ defmodule PotatoQuestServer.Game.ZoneServer do
 
   def start_link(opts) do
     zone_id = Keyword.fetch!(opts, :zone_id)
-    GenServer.start_link(__MODULE__, %{zone_id: zone_id}, name: via_tuple(zone_id))
+    zone_type = Keyword.get(opts, :zone_type, "town_square")
+    GenServer.start_link(__MODULE__, %{zone_id: zone_id, zone_type: zone_type}, name: via_tuple(zone_id))
   end
 
   def player_entered(zone_id, player_id, username) do
@@ -58,9 +59,15 @@ defmodule PotatoQuestServer.Game.ZoneServer do
   def init(args) do
     Logger.info("Starting ZoneServer for #{args.zone_id}")
 
+    # Load zone template from catalog
+    zone_type = args[:zone_type] || "town_square"
+    template = PotatoQuestServer.Game.ZoneCatalog.get_template(zone_type)
+
     state = %{
       zone_id: args.zone_id,
-      zone_type: :town, # :town or :wilderness
+      zone_type: template.type,
+      zone_template: template,
+      spawn_points: template.spawn_points || [],
       players: %{}, # %{player_id => %{username, position}}
       enemies: [],
       items: [],
@@ -69,20 +76,15 @@ defmodule PotatoQuestServer.Game.ZoneServer do
       item_counter: 0,
       tick_ref: nil
     }
-    test_enemy = %{
-      id: "enemy_0",
-      type: :pig_man,
-      position: %{x: 5.0, y: 0.0, z: 0.0},
-      health: 50,
-      max_health: 50,
-      state: :alive
-    }
+
+    # Initialize enemies from template (if wilderness zone)
+    enemies = spawn_initial_enemies(template, state)
 
     tick_ref = schedule_world_tick()
 
-    {:ok, %{ state |
-      enemies: [test_enemy],
-      enemy_counter: 1,
+    {:ok, %{state |
+      enemies: enemies,
+      enemy_counter: length(enemies),
       tick_ref: tick_ref
     }}
   end
@@ -210,8 +212,33 @@ defmodule PotatoQuestServer.Game.ZoneServer do
 
   @impl true
   def handle_info(:world_tick, state) do
+    # Delta time since last tick (200ms = 0.2 seconds)
+    delta_time = 0.2
+
+    # Update enemy AI
+    updated_enemies = PotatoQuestServer.Game.EnemyAI.update_all(
+      state.enemies,
+      state.players,
+      delta_time
+    )
+
+    # Check for enemy attacks on players
+    {enemies_after_attacks, attack_events} = process_enemy_attacks(updated_enemies, state.players)
+
+    # Broadcast enemy position updates to all players
+    if enemies_changed?(state.enemies, enemies_after_attacks) do
+      broadcast_enemy_positions(state.zone_id, enemies_after_attacks)
+    end
+
+    # Broadcast attack events
+    Enum.each(attack_events, fn event ->
+      broadcast_enemy_attack(state.zone_id, event)
+    end)
+
+    # Schedule next tick
     tick_ref = schedule_world_tick()
-    {:noreply, %{state | tick_ref: tick_ref }}
+
+    {:noreply, %{state | enemies: enemies_after_attacks, tick_ref: tick_ref}}
   end
 
   @impl true
@@ -302,5 +329,111 @@ defmodule PotatoQuestServer.Game.ZoneServer do
 
   defp remove_item(items, item_id) do
     Enum.reject(items, fn i -> i.id == item_id end)
+  end
+
+  defp spawn_initial_enemies(template, state) do
+    case template.enemy_spawns do
+      [] ->
+        []  # No enemies for safe zones
+
+      spawns ->
+        Enum.flat_map(spawns, fn spawn_config ->
+          for i <- 1..spawn_config.count do
+            spawn_enemy_at_random_point(spawn_config.type, state, i)
+          end
+        end)
+    end
+  end
+
+  defp spawn_enemy_at_random_point(enemy_type, state, index) do
+    # Random position within zone bounds
+    size = state.zone_template.size
+    x = :rand.uniform(trunc(size.width)) - trunc(size.width / 2)
+    z = :rand.uniform(trunc(size.height)) - trunc(size.height / 2)
+
+    catalog = PotatoQuestServer.Game.EnemyCatalog.get(enemy_type)
+
+    %{
+      id: "enemy_#{state.enemy_counter + index}",
+      type: enemy_type,
+      position: %{x: x * 1.0, y: 0.0, z: z * 1.0},
+      health: catalog.max_health,
+      max_health: catalog.max_health,
+      state: :idle,                    # AI state
+      target_player_id: nil,           # Current chase target
+      patrol_origin: %{x: x * 1.0, y: 0.0, z: z * 1.0},  # Where to return
+      path: [],                        # A* pathfinding queue
+      aggro_range: catalog.aggro_range || 10.0
+    }
+  end
+
+  defp enemies_changed?(old_enemies, new_enemies) do
+    # Check if any positions changed significantly (> 0.1 units)
+    if length(old_enemies) != length(new_enemies) do
+      true
+    else
+      Enum.zip(old_enemies, new_enemies)
+      |> Enum.any?(fn {old, new} ->
+        dx = abs(old.position.x - new.position.x)
+        dz = abs(old.position.z - new.position.z)
+        dx > 0.1 or dz > 0.1
+      end)
+    end
+  end
+
+  defp process_enemy_attacks(enemies, players) do
+    Enum.reduce(enemies, {[], []}, fn enemy, {e_acc, events_acc} ->
+      case enemy.state do
+        :attacking ->
+          # Find target player
+          target = Map.get(players, enemy.target_player_id)
+
+          if target do
+            catalog = PotatoQuestServer.Game.EnemyCatalog.get(enemy.type)
+            damage = catalog.damage
+
+            # Deal damage to player (TODO: Integrate with PlayerSession)
+            event = %{
+              enemy_id: enemy.id,
+              player_id: enemy.target_player_id,
+              damage: damage
+            }
+
+            {[enemy | e_acc], [event | events_acc]}
+          else
+            {[enemy | e_acc], events_acc}
+          end
+
+        _ ->
+          {[enemy | e_acc], events_acc}
+      end
+    end)
+    |> then(fn {enemies, events} -> {Enum.reverse(enemies), Enum.reverse(events)} end)
+  end
+
+  defp broadcast_enemy_positions(zone_id, enemies) do
+    enemy_data = Enum.map(enemies, fn enemy ->
+      %{
+        id: enemy.id,
+        type: enemy.type,
+        position: enemy.position,
+        state: enemy.state,
+        health: enemy.health
+      }
+    end)
+
+    Phoenix.PubSub.broadcast(
+      PotatoQuestServer.PubSub,
+      "zone:updates",
+      {:enemy_positions_update, zone_id, enemy_data}
+    )
+  end
+
+  defp broadcast_enemy_attack(zone_id, event) do
+    Phoenix.PubSub.broadcast(
+      PotatoQuestServer.PubSub,
+      "zone:updates",
+      {:enemy_attacked_player, zone_id, event}
+    )
   end
 end

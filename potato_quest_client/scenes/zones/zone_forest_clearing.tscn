@@ -1,0 +1,79 @@
+[gd_scene load_steps=8 format=3 uid="uid://forest_clearing_001"]
+
+[sub_resource type="PlaneMesh" id="PlaneMesh_ground"]
+size = Vector2(80, 80)
+
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_ground"]
+albedo_color = Color(0.2, 0.3, 0.15, 1)
+
+[sub_resource type="BoxShape3D" id="BoxShape3D_ground"]
+size = Vector3(80, 0.1, 80)
+
+[sub_resource type="ProceduralSkyMaterial" id="ProceduralSkyMaterial_sky"]
+sky_top_color = Color(0.2, 0.3, 0.4, 1)
+sky_horizon_color = Color(0.4, 0.5, 0.5, 1)
+ground_horizon_color = Color(0.3, 0.35, 0.3, 1)
+ground_bottom_color = Color(0.15, 0.2, 0.15, 1)
+
+[sub_resource type="Sky" id="Sky_forest"]
+sky_material = SubResource("ProceduralSkyMaterial_sky")
+
+[sub_resource type="Environment" id="Environment_forest"]
+background_mode = 2
+sky = SubResource("Sky_forest")
+ambient_light_source = 3
+ambient_light_color = Color(0.8, 0.9, 0.8, 1)
+ambient_light_energy = 0.3
+
+[sub_resource type="CylinderMesh" id="CylinderMesh_tree"]
+top_radius = 0.5
+bottom_radius = 0.7
+height = 8
+
+[node name="ForestClearing" type="Node3D"]
+
+[node name="Ground" type="MeshInstance3D" parent="."]
+mesh = SubResource("PlaneMesh_ground")
+surface_material_override/0 = SubResource("StandardMaterial3D_ground")
+
+[node name="GroundCollision" type="StaticBody3D" parent="Ground"]
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="Ground/GroundCollision"]
+shape = SubResource("BoxShape3D_ground")
+
+[node name="Sun" type="DirectionalLight3D" parent="."]
+transform = Transform3D(0.707107, -0.5, 0.5, 0, 0.707107, 0.707107, -0.707107, -0.5, 0.5, 25, 30, 15)
+light_color = Color(0.9, 0.95, 0.85, 1)
+light_energy = 0.6
+shadow_enabled = false
+
+[node name="WorldEnvironment" type="WorldEnvironment" parent="."]
+environment = SubResource("Environment_forest")
+
+[node name="Trees" type="Node3D" parent="."]
+
+[node name="Tree01" type="MeshInstance3D" parent="Trees"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -15, 4, -10)
+mesh = SubResource("CylinderMesh_tree")
+
+[node name="Tree02" type="MeshInstance3D" parent="Trees"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 20, 4, -15)
+mesh = SubResource("CylinderMesh_tree")
+
+[node name="Tree03" type="MeshInstance3D" parent="Trees"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -25, 4, 15)
+mesh = SubResource("CylinderMesh_tree")
+
+[node name="Tree04" type="MeshInstance3D" parent="Trees"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 18, 4, 22)
+mesh = SubResource("CylinderMesh_tree")
+
+[node name="Tree05" type="MeshInstance3D" parent="Trees"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -10, 4, 25)
+mesh = SubResource("CylinderMesh_tree")
+
+[node name="Tree06" type="MeshInstance3D" parent="Trees"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 30, 4, 5)
+mesh = SubResource("CylinderMesh_tree")
+
+[node name="Bushes" type="Node3D" parent="."]

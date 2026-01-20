@@ -37,6 +37,8 @@ signal equipment_updated(equipment: Dictionary, stats: Dictionary)
 signal inventory_changed(inventory: Array, gold: int)
 signal error_received(message: String)
 signal player_attacked(player_id: String)
+signal enemy_positions_updated(zone_id: String, enemies: Array)
+signal enemy_attacked_player(enemy_id: String, player_id: String, damage: int)
 
 
 func _ready() -> void:
@@ -280,6 +282,10 @@ func _handle_message(message_text: String) -> void:
 			_handle_inventory_updated(payload)
 		"equipment:updated":
 			_handle_equipment_updated(payload)
+		"enemy:positions_update":
+			_handle_enemy_positions_update(payload)
+		"enemy:attacked_player":
+			_handle_enemy_attacked_player(payload)
 		"error":
 			_handle_error(payload)
 		_:
@@ -402,6 +408,17 @@ func _handle_player_attacked(payload: Dictionary) -> void:
 		print("WARNING: Received player:attacked with no player_id")
 		return
 	player_attacked.emit(p_id)
+
+func _handle_enemy_positions_update(payload: Dictionary) -> void:
+	var zone_id = payload.get("zone_id", "")
+	var enemies = payload.get("enemies", [])
+	enemy_positions_updated.emit(zone_id, enemies)
+
+func _handle_enemy_attacked_player(payload: Dictionary) -> void:
+	var enemy_id = payload.get("enemy_id", "")
+	var this_player_id = payload.get("player_id", "")
+	var damage = payload.get("damage", 0)
+	enemy_attacked_player.emit(enemy_id, this_player_id, damage)
 
 func _get_next_ref() -> int:
 	_message_ref += 1

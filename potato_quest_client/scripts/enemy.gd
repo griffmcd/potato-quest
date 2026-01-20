@@ -6,6 +6,10 @@ var enemy_type: String = "pig_man"
 var current_health: int = 50
 var max_health: int = 50
 
+# Position interpolation
+var target_position: Vector3 = Vector3.ZERO
+var interpolation_speed: float = 10.0
+
 @onready var hurtbox: Area3D = $Hurtbox
 @onready var body: Node3D = $CharacterVisual/Body
 @onready var animation_player: AnimationPlayer = $CharacterVisual/Body/AnimationPlayer
@@ -15,6 +19,7 @@ signal health_changed(enemy_id: String, current_hp: int)
 
 func _ready() -> void:
     hurtbox.input_event.connect(_on_hurtbox_input_event)
+    target_position = global_position
 
     # Debug: Check if animation player exists
     if not animation_player:
@@ -22,6 +27,12 @@ func _ready() -> void:
     else:
         print("Enemy ", enemy_id, " - AnimationPlayer found, playing Idle")
         _update_animation_state()
+
+func _physics_process(delta: float) -> void:
+    # Smoothly interpolate to target position
+    var distance = global_position.distance_to(target_position)
+    if distance > 0.05:
+        global_position = global_position.lerp(target_position, interpolation_speed * delta)
 
 func update_health(new_health: int) -> void:
     current_health = new_health
@@ -50,3 +61,6 @@ func _update_animation_state() -> void:
     # In the future, this can be extended for attack/walk animations
     if animation_player.current_animation != "Idle":
         animation_player.play("Idle")
+
+func update_position(new_position: Vector3) -> void:
+    target_position = new_position
