@@ -28,7 +28,7 @@ signal player_rotated(player_id: String, rotation: Dictionary)
 signal player_left(player_id: String, username: String)
 signal lobby_state_received(players: Array)
 signal chat_message_received(player_id: String, username: String, message: String)
-signal zone_state_received(enemies: Array)
+signal zone_state_received(zone_data: Dictionary)
 signal enemy_damaged(enemy_id: String, damage: int, health: int, attacker_id: String) 
 signal enemy_died(enemy_id: String, loot: Dictionary)
 signal item_picked_up(item_id: String, player_id: String)
@@ -342,9 +342,10 @@ func _handle_chat_message(payload: Dictionary) -> void:
 	chat_message_received.emit(p_id, p_username, message)
 
 func _handle_zone_state(payload: Dictionary) -> void:
+	var zone_id = payload.get("zone_id", "town_square")
 	var enemies = payload.get("enemies", [])
-	print("Zone state: ", enemies.size(), " enemies")
-	zone_state_received.emit(enemies)
+	print("Zone state: Zone ", zone_id, " with ", enemies.size(), " enemies")
+	zone_state_received.emit(payload)
 
 func _handle_enemy_damaged(payload: Dictionary) -> void:
 	var enemy_id = payload.get("enemy_id", "")

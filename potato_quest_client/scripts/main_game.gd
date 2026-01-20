@@ -77,6 +77,14 @@ func load_zone(zone_id: String) -> void:
 	else:
 		push_error("Failed to load zone: " + zone_path)
 
+## Request to transition to a different zone
+## TODO: Future - trigger from portals, NPCs, etc.
+func request_zone_transition(target_zone_id: String) -> void:
+	# Future: Send "zone:transition" message to server
+	# Server updates socket zone_id and sends new zone:state
+	# Client auto-loads new zone via _on_zone_state_received
+	pass
+
 func _on_joined_lobby(player_id: String) -> void:
 	print("MainGame: Joined lobby as ", player_id)
 
@@ -158,11 +166,14 @@ func _on_player_left(p_id: String, username: String) -> void:
 		if ui_overlay:
 			ui_overlay.unregister_player(p_id)
 
-func _on_zone_state_received(enemy_data: Array) -> void:
-	# Load town_square zone if not already loaded
-	# TODO: Server should send zone_id with state
-	if current_zone_id.is_empty():
-		load_zone("town_square")
+func _on_zone_state_received(zone_data: Dictionary) -> void:
+	# Server sends zone_id with state
+	var zone_id = zone_data.get("zone_id", "town_square")
+	var enemy_data = zone_data.get("enemies", [])
+
+	# Load zone if not loaded or if zone changed
+	if current_zone_id.is_empty() or current_zone_id != zone_id:
+		load_zone(zone_id)
 
 	print("MainGame: Spawning ", enemy_data.size(), " enemies")
 	for data in enemy_data:

@@ -1,0 +1,83 @@
+[gd_scene load_steps=13 format=3 uid="uid://spawn_town_001"]
+
+[ext_resource type="PackedScene" uid="uid://ci1yw0uulttd6" path="res://assets/buildings/House/Models/House.fbx" id="1_house"]
+[ext_resource type="PackedScene" uid="uid://ceg1xwqb6d7dr" path="res://assets/nature/retro_nature_pack/models/FBX/trees/tree01.fbx" id="2_tree01"]
+[ext_resource type="PackedScene" uid="uid://cqo5dwf5wrvvs" path="res://assets/nature/retro_nature_pack/models/FBX/trees/tree02.fbx" id="3_tree02"]
+[ext_resource type="PackedScene" uid="uid://dqjh54nqgmxip" path="res://assets/nature/retro_nature_pack/models/FBX/trees/tree03.fbx" id="4_tree03"]
+
+[sub_resource type="PlaneMesh" id="PlaneMesh_ground"]
+size = Vector2(100, 100)
+
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_ground"]
+albedo_color = Color(0.4, 0.5, 0.3, 1)
+
+[sub_resource type="BoxShape3D" id="BoxShape3D_ground"]
+size = Vector3(100, 0.1, 100)
+
+[sub_resource type="ProceduralSkyMaterial" id="ProceduralSkyMaterial_sky"]
+sky_top_color = Color(0.4, 0.7, 1.0, 1)
+sky_horizon_color = Color(0.7, 0.85, 1.0, 1)
+ground_horizon_color = Color(0.7, 0.85, 1.0, 1)
+ground_bottom_color = Color(0.3, 0.25, 0.2, 1)
+
+[sub_resource type="Sky" id="Sky_spawn"]
+sky_material = SubResource("ProceduralSkyMaterial_sky")
+
+[sub_resource type="Environment" id="Environment_spawn"]
+background_mode = 2
+sky = SubResource("Sky_spawn")
+ambient_light_source = 3
+ambient_light_color = Color(0.8, 0.8, 0.75, 1)
+ambient_light_energy = 0.6
+
+[node name="SpawnTown" type="Node3D"]
+
+[node name="Ground" type="MeshInstance3D" parent="."]
+mesh = SubResource("PlaneMesh_ground")
+surface_material_override/0 = SubResource("StandardMaterial3D_ground")
+
+[node name="GroundCollision" type="StaticBody3D" parent="Ground"]
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="Ground/GroundCollision"]
+shape = SubResource("BoxShape3D_ground")
+
+[node name="Sun" type="DirectionalLight3D" parent="."]
+transform = Transform3D(0.866025, -0.433013, 0.25, 0, 0.5, 0.866025, -0.5, -0.75, 0.433013, 50, 30, 20)
+light_energy = 1.0
+shadow_enabled = false
+
+[node name="WorldEnvironment" type="WorldEnvironment" parent="."]
+environment = SubResource("Environment_spawn")
+
+[node name="Buildings" type="Node3D" parent="."]
+
+[node name="House" parent="Buildings" instance=ExtResource("1_house")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 10, 0, 10)
+
+[node name="Vegetation" type="Node3D" parent="."]
+
+[node name="Tree01" parent="Vegetation" instance=ExtResource("2_tree01")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -30, 0, -30)
+
+[node name="Tree02" parent="Vegetation" instance=ExtResource("2_tree01")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 30, 0, -30)
+
+[node name="Tree03" parent="Vegetation" instance=ExtResource("3_tree02")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -30, 0, 30)
+
+[node name="Tree04" parent="Vegetation" instance=ExtResource("3_tree02")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 30, 0, 30)
+
+[node name="Tree05" parent="Vegetation" instance=ExtResource("4_tree03")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 40)
+
+[node name="SpawnPoints" type="Node3D" parent="."]
+
+[node name="MainGate" type="Marker3D" parent="SpawnPoints"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1, -45)
+
+[node name="Center" type="Marker3D" parent="SpawnPoints"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1, 0)
+
+[node name="Market" type="Marker3D" parent="SpawnPoints"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 20, 1, 10)

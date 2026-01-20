@@ -30,6 +30,10 @@ defmodule PotatoQuestServerWeb.GameChannel do
     spawn_z = spawn_radius * :math.sin(angle)
     socket = assign(socket, :position, %{x: spawn_x, y: 1.0, z: spawn_z})
 
+    # Players start in spawn town
+    # TODO: Future - load from database for persistence
+    socket = assign(socket, :zone_id, "spawn_town")
+
     # Get list of current players in lobby
     send(self(), :after_join)
 
@@ -148,16 +152,17 @@ defmodule PotatoQuestServerWeb.GameChannel do
 
   @impl true
   def handle_in("zone:request_state", _payload, socket) do
-    zone_id = "spawn_town"
+    zone_id = socket.assigns[:zone_id] || "spawn_town"
     enemies = PotatoQuestServer.Game.ZoneServer.get_enemies(zone_id)
-    push(socket, "zone:state", %{enemies: enemies})
+    # Send zone_id so client knows which zone to load
+    push(socket, "zone:state", %{zone_id: zone_id, enemies: enemies})
     {:noreply, socket}
   end
 
   @impl true
   def handle_in("player:attack", %{"enemy_id" => enemy_id}, socket) do
     player_id = socket.assigns.player_id
-    zone_id = "spawn_town"  # TODO: should not be hardcoded. Later phase work
+    zone_id = socket.assigns[:zone_id] || "spawn_town"
 
     case PotatoQuestServer.Game.ZoneServer.handle_attack(zone_id, player_id, enemy_id) do
       {:ok, {:enemy_damaged, damage, new_health}} ->
@@ -199,7 +204,7 @@ defmodule PotatoQuestServerWeb.GameChannel do
   @impl true
   def handle_in("player:pickup_item", %{"item_id" => item_id}, socket) do
     player_id = socket.assigns.player_id
-    zone_id = "spawn_town"
+    zone_id = socket.assigns[:zone_id] || "spawn_town"
 
     case PotatoQuestServer.Game.ZoneServer.handle_pickup(zone_id, player_id, item_id) do
       {:ok, :gold, _amount} ->
@@ -302,6 +307,16 @@ defmodule PotatoQuestServerWeb.GameChannel do
         {:noreply, socket}
     end
   end
+
+  # TODO: Future enhancement - Zone transitions
+  # def handle_in("zone:transition", %{"target_zone_id" => target_zone_id}, socket) do
+  #   old_zone_id = socket.assigns.zone_id
+  #   PotatoQuestServer.Game.ZoneServer.player_left(old_zone_id, socket.assigns.player_id)
+  #   {:ok, zone_state} = PotatoQuestServer.Game.ZoneServer.player_entered(target_zone_id, ...)
+  #   socket = assign(socket, :zone_id, target_zone_id)
+  #   push(socket, "zone:state", %{zone_id: target_zone_id, enemies: zone_state.enemies})
+  #   {:noreply, socket}
+  # end
 
   @impl true
   def handle_out("presence_diff", msg, socket) do
