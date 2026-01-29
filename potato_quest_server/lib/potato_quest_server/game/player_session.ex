@@ -57,6 +57,10 @@ defmodule PotatoQuestServer.Game.PlayerSession do
     GenServer.call(via_tuple(player_id), {:unequip_item, slot})
   end
 
+  def take_damage(player_id, damage) do
+    GenServer.call(via_tuple(player_id), {:take_damage, damage})
+  end
+
   # Server Callbacks
 
   @impl true
@@ -212,6 +216,24 @@ defmodule PotatoQuestServer.Game.PlayerSession do
         )
         {:reply, {:ok, item_instance}, %{state | inventory: new_inventory}}
     end
+  end
+
+  @impl true
+  def handle_call({:take_damage, damage}, _from, state) do
+    # Apply defense reduction (damage - def/2, minimum 1)
+    actual_damage = max(1, damage - div(state.stats.def, 2))
+    new_health = max(0, state.stats.health - actual_damage)
+
+    updated_stats = %{state.stats | health: new_health}
+
+    result = %{
+      health: new_health,
+      max_health: state.stats.max_health,
+      damage_taken: actual_damage,
+      is_dead: new_health == 0
+    }
+
+    {:reply, {:ok, result}, %{state | stats: updated_stats}}
   end
 
   @impl true

@@ -47,6 +47,8 @@ func _connect_signals() -> void:
 	network.player_attacked.connect(_on_player_attacked)
 	network.enemy_positions_updated.connect(_on_enemy_positions_updated)
 	network.enemy_attacked_player.connect(_on_enemy_attacked_player)
+	network.player_damaged.connect(_on_player_damaged)
+	network.enemies_spawned.connect(_on_enemies_spawned)
 
 	# Request the current lobby state now that we're ready
 	network.request_lobby_state()
@@ -178,7 +180,7 @@ func _on_zone_state_received(zone_data: Dictionary) -> void:
 	print("MainGame: Spawning ", enemy_data.size(), " enemies")
 	for data in enemy_data:
 		print("DEBUG: Enemy data = ", data)
-		if data.get("state") == "alive":
+		if data.get("state") != "dead":
 			_spawn_enemy(data)
 
 func _spawn_enemy(data: Dictionary) -> void:
@@ -190,9 +192,18 @@ func _spawn_enemy(data: Dictionary) -> void:
 	if enemies.has(enemy_id):
 		return
 
+	# Use generic enemy scene for all enemy types for now
+	# TODO: Implement type-specific scenes when properly structured
+	var enemy_type = data.get("type", "pig_man")
 	var enemy = enemy_scene.instantiate()
+	if not enemy:
+		print("ERROR: Failed to instantiate enemy scene!")
+		return
+
+	print("MainGame: Spawned generic enemy for type: ", enemy_type)
+
 	enemy.enemy_id = enemy_id
-	enemy.enemy_type = data.get("type", "pig_man")
+	enemy.enemy_type = enemy_type
 	enemy.current_health = data.get("health", 50)
 	enemy.max_health = data.get("max_health", 50)
 
@@ -218,11 +229,14 @@ func _on_enemy_health_changed(enemy_id: String, current_hp: int) -> void:
 	if ui_overlay:
 		ui_overlay.update_enemy_hp(enemy_id, current_hp) 
 
-func _on_enemy_damaged(enemy_id: String, damage: int, health: int, attacker_id: String) -> void: 
+func _on_enemy_damaged(enemy_id: String, damage: int, health: int, attacker_id: String) -> void:
+	print("Enemy ", enemy_id, " damaged for ", damage, " (HP: ", health, ")")
 	if enemies.has(enemy_id):
 		var enemy = enemies[enemy_id]
 		enemy.update_health(health)
-		_show_damage_number(enemy.global_position, damage) 
+		_show_damage_number(enemy.global_position, damage)
+	else:
+		print("WARNING: Enemy ", enemy_id, " not found in enemies dictionary") 
 
 
 func _on_enemy_died(enemy_id: String, loot: Dictionary) -> void:
@@ -348,6 +362,10 @@ func _on_enemy_positions_updated(zone_id: String, enemy_data: Array) -> void:
 			var pos = data.get("position", {"x": 0, "y": 0, "z": 0})
 			enemy.update_position(Vector3(pos.x, pos.y, pos.z))
 
+			# Update animation if provided
+			if data.has("animation"):
+				enemy.update_animation(data.animation)
+
 func _on_enemy_attacked_player(enemy_id: String, player_id: String, damage: int) -> void:
 	print("MainGame: Enemy ", enemy_id, " attacked player ", player_id, " for ", damage, " damage")
 
@@ -355,3 +373,23 @@ func _on_enemy_attacked_player(enemy_id: String, player_id: String, damage: int)
 	if player_id == network.player_id:
 		# TODO: Reduce player health, show damage flash
 		print("MainGame: YOU TOOK ", damage, " DAMAGE!")
+
+func _on_player_damaged(enemy_id: String, player_id: String, damage: int, health: int, max_health: int, is_dead: bool) -> void:
+	print("MainGame: Player ", player_id, " damaged by ", enemy_id, " for ", damage, " damage (HP: ", health, "/", max_health, ")")
+
+	# If it's us, update our health and show damage
+	if player_id == network.player_id and player:
+		player.update_health(health, max_health)
+		# Show damage number above player
+		_show_damage_number(player.global_position + Vector3.UP * 2, damage)
+
+		if is_dead:
+			print("MainGame: LOCAL PLAYER DIED!")
+
+func _on_enemies_spawned(zone_id: String, enemy_list: Array) -> void:
+	print("MainGame: ", enemy_list.size(), " enemies respawned in zone ", zone_id)
+	if zone_id != current_zone_id:
+		return  # Ignore spawns for other zones
+
+	for enemy_data in enemy_list:
+		_spawn_enemy(enemy_data)

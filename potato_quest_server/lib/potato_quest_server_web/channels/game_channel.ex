@@ -93,6 +93,31 @@ defmodule PotatoQuestServerWeb.GameChannel do
   end
 
   @impl true
+  def handle_info({:player_damaged, zone_id, event}, socket) do
+    broadcast!(socket, "player:damaged", %{
+      zone_id: zone_id,
+      enemy_id: event.enemy_id,
+      player_id: event.player_id,
+      damage: event.damage,
+      health: event.health,
+      max_health: event.max_health,
+      is_dead: event.is_dead
+    })
+
+    {:noreply, socket}
+  end
+
+  @impl true
+  def handle_info({:enemies_spawned, zone_id, enemies}, socket) do
+    broadcast!(socket, "enemies:spawned", %{
+      zone_id: zone_id,
+      enemies: enemies
+    })
+
+    {:noreply, socket}
+  end
+
+  @impl true
   def handle_in("player:move", %{
     "x" => x,
     "y" => y,

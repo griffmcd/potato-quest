@@ -59,7 +59,7 @@ defmodule PotatoQuestServer.Game.ProcGen do
   defp random_position(size) do
     %{
       x: :rand.uniform(trunc(size.width)) - trunc(size.width / 2),
-      y: 0.0,
+      y: 1.0,
       z: :rand.uniform(trunc(size.height)) - trunc(size.height / 2)
     }
   end

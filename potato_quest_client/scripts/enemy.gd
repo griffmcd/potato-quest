@@ -10,6 +10,9 @@ var max_health: int = 50
 var target_position: Vector3 = Vector3.ZERO
 var interpolation_speed: float = 10.0
 
+# Animation tracking
+var current_animation_state: String = "Idle"
+
 @onready var hurtbox: Area3D = $Hurtbox
 @onready var body: Node3D = $CharacterVisual/Body
 @onready var animation_player: AnimationPlayer = $CharacterVisual/Body/AnimationPlayer
@@ -64,3 +67,12 @@ func _update_animation_state() -> void:
 
 func update_position(new_position: Vector3) -> void:
     target_position = new_position
+
+func update_animation(new_state: String) -> void:
+    if current_animation_state != new_state:
+        current_animation_state = new_state
+        if animation_player and animation_player.has_animation(new_state):
+            animation_player.play(new_state)
+        else:
+            if animation_player:
+                print("Enemy ", enemy_id, " - Animation '", new_state, "' not found")

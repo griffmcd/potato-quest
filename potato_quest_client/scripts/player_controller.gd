@@ -26,7 +26,12 @@ var animation_update_interval: float = 0.05  # Loaded from SettingsManager
 var animation_update_timer: float = 0.0
 
 # Attack tracking
-var _is_attacking: bool = false 
+var _is_attacking: bool = false
+
+# Health tracking
+var current_health: int = 100
+var max_health: int = 100
+signal health_changed(current_hp: int, max_hp: int)
 
 # Reference to NetworkManager (autoload)
 @onready var network = get_node("/root/NetworkManager")
@@ -256,3 +261,16 @@ func _on_animation_changed(player_interval: float, _remote_player_interval: floa
 func _on_gameplay_changed(_interpolation_speed: float, move_threshold: float, rotation_threshold: float) -> void:
 	_move_threshold = move_threshold
 	_rotation_threshold = rotation_threshold
+
+## Update player health when damaged
+func update_health(new_health: int, new_max: int) -> void:
+	current_health = new_health
+	max_health = new_max
+	health_changed.emit(current_health, max_health)
+	if current_health <= 0:
+		_on_player_death()
+
+## Handle player death
+func _on_player_death() -> void:
+	print("PLAYER DIED!")
+	# TODO: Show death screen, respawn logic, etc.

@@ -6,7 +6,7 @@ defmodule PotatoQuestServer.Game.EnemyCatalog do
   @type enemy_id :: String.t()
   @type enemy :: %{
     enemy_id: enemy_id(),
-    type: :pig_man | :wolf | :none,
+    type: :pig_man | :wolf | :bigfoot | :none,
     position: %{
       x: float(),
       y: float(),
@@ -42,6 +42,21 @@ defmodule PotatoQuestServer.Game.EnemyCatalog do
       patrol_speed: 2.0,
       loot_table: :wolf,
       xp_reward: 30
+    },
+
+    bigfoot: %{
+      name: "Bigfoot",
+      max_health: 80,
+      damage: 12,
+      defense: 4,
+      aggro_range: 12.0,
+      attack_range: 2.5,
+      chase_speed: 2.5,
+      patrol_speed: 1.0,
+      attack_cooldown: 2.5,        # NEW FIELD
+      respawn_time: 45.0,          # NEW FIELD
+      loot_table: :bigfoot,
+      xp_reward: 50
     }
   }
 

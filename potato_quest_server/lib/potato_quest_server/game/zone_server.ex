@@ -14,6 +14,12 @@ defmodule PotatoQuestServer.Game.ZoneServer do
       {15, :item, "leather_tunic"},
       {10, :item, "iron_band"},
       {20, :gold, {5, 15}}
+    ],
+    bigfoot: [
+      {25, :item, "iron_band"},
+      {20, :item, "leather_tunic"},
+      {15, :item, "bronze_sword"},
+      {30, :gold, {10, 25}}
     ]
   }
 
@@ -70,6 +76,7 @@ defmodule PotatoQuestServer.Game.ZoneServer do
       spawn_points: template.spawn_points || [],
       players: %{}, # %{player_id => %{username, position}}
       enemies: [],
+      dead_enemies: [],
       items: [],
       seed: :rand.uniform(1_000_000),
       enemy_counter: 0,
@@ -147,8 +154,18 @@ defmodule PotatoQuestServer.Game.ZoneServer do
             end
           end)
 
+          # Move enemy to dead_enemies list for respawn tracking
+          catalog = PotatoQuestServer.Game.EnemyCatalog.get(enemy.type)
+          respawn_time = Map.get(catalog, :respawn_time, 30.0)
+          dead_enemy_entry = %{
+            enemy: updated_enemy,
+            death_time: System.monotonic_time(:second),
+            respawn_time: respawn_time
+          }
+
           new_state = %{state |
-            enemies: mark_enemy_dead(enemies, enemy_id),
+            enemies: remove_dead_enemy(enemies, enemy_id),
+            dead_enemies: [dead_enemy_entry | state.dead_enemies],
             items: spawned_items ++ state.items,
             item_counter: final_counter
           }
@@ -230,15 +247,42 @@ defmodule PotatoQuestServer.Game.ZoneServer do
       broadcast_enemy_positions(state.zone_id, enemies_after_attacks)
     end
 
-    # Broadcast attack events
+    # Broadcast player damage events
     Enum.each(attack_events, fn event ->
-      broadcast_enemy_attack(state.zone_id, event)
+      broadcast_player_damaged(state.zone_id, event)
     end)
+
+    # Check for enemy respawns
+    current_time = System.monotonic_time(:second)
+    {ready_to_respawn, still_dead} = Enum.split_with(state.dead_enemies, fn de ->
+      (current_time - de.death_time) >= de.respawn_time
+    end)
+
+    # Respawn enemies at their patrol origin with full health
+    respawned = Enum.map(ready_to_respawn, fn de ->
+      catalog = PotatoQuestServer.Game.EnemyCatalog.get(de.enemy.type)
+      %{de.enemy |
+        health: catalog.max_health,
+        state: :idle,
+        position: de.enemy.patrol_origin,
+        last_attack_time: 0.0,
+        target_player_id: nil
+      }
+    end)
+
+    # Broadcast respawned enemies
+    if length(respawned) > 0 do
+      broadcast_enemy_spawns(state.zone_id, respawned)
+    end
 
     # Schedule next tick
     tick_ref = schedule_world_tick()
 
-    {:noreply, %{state | enemies: enemies_after_attacks, tick_ref: tick_ref}}
+    {:noreply, %{state |
+      enemies: enemies_after_attacks ++ respawned,
+      dead_enemies: still_dead,
+      tick_ref: tick_ref
+    }}
   end
 
   @impl true
@@ -317,10 +361,8 @@ defmodule PotatoQuestServer.Game.ZoneServer do
     end)
   end
 
-  defp mark_enemy_dead(enemies, enemy_id) do
-    Enum.map(enemies, fn e ->
-      if e.id == enemy_id, do: %{e | state: :dead}, else: e
-    end)
+  defp remove_dead_enemy(enemies, enemy_id) do
+    Enum.reject(enemies, fn e -> e.id == enemy_id end)
   end
 
   defp find_item(items, item_id) do
@@ -356,14 +398,15 @@ defmodule PotatoQuestServer.Game.ZoneServer do
     %{
       id: "enemy_#{state.enemy_counter + index}",
       type: enemy_type,
-      position: %{x: x * 1.0, y: 0.0, z: z * 1.0},
+      position: %{x: x * 1.0, y: 1.0, z: z * 1.0},
       health: catalog.max_health,
       max_health: catalog.max_health,
       state: :idle,                    # AI state
       target_player_id: nil,           # Current chase target
-      patrol_origin: %{x: x * 1.0, y: 0.0, z: z * 1.0},  # Where to return
+      patrol_origin: %{x: x * 1.0, y: 1.0, z: z * 1.0},  # Where to return
       path: [],                        # A* pathfinding queue
-      aggro_range: catalog.aggro_range || 10.0
+      aggro_range: catalog.aggro_range || 10.0,
+      last_attack_time: 0.0            # Track attack cooldowns
     }
   end
 
@@ -382,6 +425,8 @@ defmodule PotatoQuestServer.Game.ZoneServer do
   end
 
   defp process_enemy_attacks(enemies, players) do
+    current_time = System.monotonic_time(:millisecond) / 1000.0
+
     Enum.reduce(enemies, {[], []}, fn enemy, {e_acc, events_acc} ->
       case enemy.state do
         :attacking ->
@@ -390,16 +435,37 @@ defmodule PotatoQuestServer.Game.ZoneServer do
 
           if target do
             catalog = PotatoQuestServer.Game.EnemyCatalog.get(enemy.type)
-            damage = catalog.damage
+            attack_cooldown = Map.get(catalog, :attack_cooldown, 1.0)
+            time_since_attack = current_time - enemy.last_attack_time
 
-            # Deal damage to player (TODO: Integrate with PlayerSession)
-            event = %{
-              enemy_id: enemy.id,
-              player_id: enemy.target_player_id,
-              damage: damage
-            }
+            # Check if cooldown has passed
+            if time_since_attack >= attack_cooldown do
+              damage = catalog.damage
 
-            {[enemy | e_acc], [event | events_acc]}
+              # Deal damage to player through PlayerSession
+              case PotatoQuestServer.Game.PlayerSession.take_damage(enemy.target_player_id, damage) do
+                {:ok, result} ->
+                  event = %{
+                    enemy_id: enemy.id,
+                    player_id: enemy.target_player_id,
+                    damage: result.damage_taken,
+                    health: result.health,
+                    max_health: result.max_health,
+                    is_dead: result.is_dead
+                  }
+
+                  # Update last attack time
+                  updated_enemy = %{enemy | last_attack_time: current_time}
+                  {[updated_enemy | e_acc], [event | events_acc]}
+
+                {:error, _reason} ->
+                  # Player session not found or error - skip attack
+                  {[enemy | e_acc], events_acc}
+              end
+            else
+              # Cooldown not ready yet
+              {[enemy | e_acc], events_acc}
+            end
           else
             {[enemy | e_acc], events_acc}
           end
@@ -418,7 +484,8 @@ defmodule PotatoQuestServer.Game.ZoneServer do
         type: enemy.type,
         position: enemy.position,
         state: enemy.state,
-        health: enemy.health
+        health: enemy.health,
+        animation: animation_for_state(enemy.state)
       }
     end)
 
@@ -429,11 +496,37 @@ defmodule PotatoQuestServer.Game.ZoneServer do
     )
   end
 
-  defp broadcast_enemy_attack(zone_id, event) do
+  defp animation_for_state(:idle), do: "Idle"
+  defp animation_for_state(:chasing), do: "Walk"
+  defp animation_for_state(:attacking), do: "Sword_Attack"
+  defp animation_for_state(:returning), do: "Walk"
+  defp animation_for_state(:dead), do: "Death01"
+  defp animation_for_state(_), do: "Idle"
+
+  defp broadcast_player_damaged(zone_id, event) do
     Phoenix.PubSub.broadcast(
       PotatoQuestServer.PubSub,
       "zone:updates",
-      {:enemy_attacked_player, zone_id, event}
+      {:player_damaged, zone_id, event}
+    )
+  end
+
+  defp broadcast_enemy_spawns(zone_id, enemies) do
+    enemy_data = Enum.map(enemies, fn enemy ->
+      %{
+        id: enemy.id,
+        type: enemy.type,
+        position: enemy.position,
+        health: enemy.health,
+        max_health: enemy.max_health,
+        state: "alive"
+      }
+    end)
+
+    Phoenix.PubSub.broadcast(
+      PotatoQuestServer.PubSub,
+      "zone:updates",
+      {:enemies_spawned, zone_id, enemy_data}
     )
   end
 end

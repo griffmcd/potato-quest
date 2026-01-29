@@ -39,6 +39,8 @@ signal error_received(message: String)
 signal player_attacked(player_id: String)
 signal enemy_positions_updated(zone_id: String, enemies: Array)
 signal enemy_attacked_player(enemy_id: String, player_id: String, damage: int)
+signal player_damaged(enemy_id: String, player_id: String, damage: int, health: int, max_health: int, is_dead: bool)
+signal enemies_spawned(zone_id: String, enemies: Array)
 
 
 func _ready() -> void:
@@ -286,6 +288,10 @@ func _handle_message(message_text: String) -> void:
 			_handle_enemy_positions_update(payload)
 		"enemy:attacked_player":
 			_handle_enemy_attacked_player(payload)
+		"player:damaged":
+			_handle_player_damaged(payload)
+		"enemies:spawned":
+			_handle_enemies_spawned(payload)
 		"error":
 			_handle_error(payload)
 		_:
@@ -420,6 +426,20 @@ func _handle_enemy_attacked_player(payload: Dictionary) -> void:
 	var this_player_id = payload.get("player_id", "")
 	var damage = payload.get("damage", 0)
 	enemy_attacked_player.emit(enemy_id, this_player_id, damage)
+
+func _handle_player_damaged(payload: Dictionary) -> void:
+	var enemy_id = payload.get("enemy_id", "")
+	var this_player_id = payload.get("player_id", "")
+	var damage = payload.get("damage", 0)
+	var health = payload.get("health", 0)
+	var max_health = payload.get("max_health", 100)
+	var is_dead = payload.get("is_dead", false)
+	player_damaged.emit(enemy_id, this_player_id, damage, health, max_health, is_dead)
+
+func _handle_enemies_spawned(payload: Dictionary) -> void:
+	var zone_id = payload.get("zone_id", "")
+	var enemy_list = payload.get("enemies", [])
+	enemies_spawned.emit(zone_id, enemy_list)
 
 func _get_next_ref() -> int:
 	_message_ref += 1

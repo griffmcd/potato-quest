@@ -22,6 +22,22 @@ defmodule PotatoQuestServer.Game.ZoneCatalog do
       ]
     },
 
+    "spawn_town" => %{
+      name: "Starter Town",
+      type: :town,
+      zone_id: "spawn_town",
+      permanent: true,
+      seed_based: true,
+      allow_pvp: false,
+      enemy_spawns: [
+        %{type: :bigfoot, count: 2, patrol_radius: 8.0}
+      ],
+      size: %{width: 60, height: 60},
+      spawn_points: [
+        %{id: "town_entrance", position: %{x: 0, y: 1, z: -20}}
+      ]
+    },
+
     # Wilderness Zones
     "forest_clearing" => %{
       name: "Whispering Woods",
